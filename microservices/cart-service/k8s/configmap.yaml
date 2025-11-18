@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cart-config
+data:
+  aws_region: "us-east-1"
+  dynamodb_table: "Carts"
+  node_env: "production"
