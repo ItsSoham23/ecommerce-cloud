@@ -16,7 +16,8 @@ class ProductController {
         category: req.query.category,
         minPrice: req.query.minPrice,
         maxPrice: req.query.maxPrice,
-        search: req.query.search
+        search: req.query.search,
+        includeInactive: req.query.includeInactive === 'true'
       };
       
       const products = await productService.getAllProducts(filters);
@@ -68,8 +69,18 @@ class ProductController {
 
   async updateStock(req, res, next) {
     try {
-      const { quantity } = req.body;
-      const product = await productService.updateStock(req.params.id, quantity);
+      const { quantity, orderId } = req.body;
+      const product = await productService.updateStock(req.params.id, quantity, { orderId });
+      res.status(200).json(product);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async clearReservation(req, res, next) {
+    try {
+      const { orderId } = req.body;
+      const product = await productService.clearReservation(req.params.id, orderId);
       res.status(200).json(product);
     } catch (error) {
       next(error);

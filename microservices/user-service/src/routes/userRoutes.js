@@ -8,9 +8,17 @@ router.get('/health', (req, res) => res.send('User Service is healthy'));
 
 router.post(
   '/',
-  [body('email').isEmail(), body('password').isLength({ min: 6 }).optional({ nullable: true })],
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('firstName').optional().isString(),
+    body('lastName').optional().isString(),
+    body('phone').optional().isString()
+  ],
   controller.createUser
 );
+
+router.post('/login', [body('email').isEmail(), body('password').isLength({ min: 6 })], controller.login);
 
 router.get('/:id', controller.getUserById);
 router.get('/email/:email', controller.getUserByEmail);

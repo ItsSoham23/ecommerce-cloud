@@ -25,7 +25,10 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 		throw new Error('Cart is empty');
 	}
 
-	// 1) Check inventory for each item
+		// generate orderId early so reservations can reference it
+		const generatedOrderId = `ord-${Date.now()}`;
+
+		// 1) Check inventory for each item
 	for (const it of items) {
 		const check = await inventoryService.checkInventory(it.productId, it.quantity);
 		if (!check.ok) {
@@ -33,10 +36,10 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 		}
 	}
 
-	// 2) Reserve/block stock for each item
+		// 2) Reserve/block stock for each item (pass orderId so product can mark reservation)
 	const reservations = [];
 	for (const it of items) {
-		const r = await inventoryService.reserve(it.productId, it.quantity);
+			const r = await inventoryService.reserve(it.productId, it.quantity, generatedOrderId);
 		if (!r.ok) {
 			// Release any previous reservations
 			for (const prev of reservations) {
@@ -57,12 +60,20 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 				for (const it of items) {
 					try {
 						const prodRes = await productClient.get(`/api/products/${it.productId}`);
-						const price = prodRes && prodRes.data && prodRes.data.price ? parseFloat(prodRes.data.price) : 0;
+						const prod = prodRes && prodRes.data ? prodRes.data : null;
+						const price = prod && prod.price ? parseFloat(prod.price) : 0;
+						const name = prod && (prod.name || prod.productName) ? (prod.name || prod.productName) : undefined;
+						// Enrich the item with a historical snapshot so orders persist price/name
+						it.price = price;
+						if (name) it.productName = name;
 						computed += price * (it.quantity || 0);
 						log(`Fetched product ${it.productId} price=${price} qty=${it.quantity} subtotal=${price * (it.quantity || 0)}`);
 					} catch (pe) {
 						// If fetching product fails, log and continue (treat price as 0)
 						error(`Failed to fetch product ${it.productId} for total calculation`, pe && pe.message ? pe.message : pe);
+						// ensure fields exist to avoid undefined later
+						it.price = Number(it.price ?? 0);
+						it.productName = it.productName ?? undefined;
 					}
 				}
 				log(`Computed total from products: ${computed}`);
@@ -90,8 +101,8 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 		}
 	}
 
-	const order = {
-		orderId: `ord-${Date.now()}`,
+    const order = {
+      orderId: generatedOrderId,
 		userId,
 		items,
 		total,
@@ -126,3 +137,13 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 }
 
 module.exports = { createOrderFromCart };
+
+async function getOrdersByUser(userId) {
+	return await OrderModel.getOrdersByUser(userId);
+}
+
+async function getOrderById(orderId) {
+	return await OrderModel.getOrder(orderId);
+}
+
+module.exports = { createOrderFromCart, getOrdersByUser, getOrderById };

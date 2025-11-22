@@ -15,5 +15,7 @@ router.post('/:id/upload-image', upload.single('image'), productController.uploa
 
 // Stock management
 router.patch('/:id/stock', productController.updateStock);
+// Clear a reservation (used after payment succeeded/failed)
+router.patch('/:id/clear-reservation', productController.clearReservation);
 
 module.exports = router;

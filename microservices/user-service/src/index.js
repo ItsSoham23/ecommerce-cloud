@@ -23,7 +23,11 @@ app.use('/api/users', userRoutes);
 // error handler
 app.use((err, req, res, next) => {
   console.error(err.stack || err);
-  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+  const status = err.status || 500;
+  // Normalize error response to { message, errors? }
+  const payload = { message: err.message || 'Internal Server Error' };
+  if (err.errors) payload.errors = err.errors;
+  res.status(status).json(payload);
 });
 
 const start = async () => {

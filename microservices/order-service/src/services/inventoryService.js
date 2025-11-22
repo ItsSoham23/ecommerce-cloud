@@ -17,14 +17,28 @@ async function checkInventory(productId, requiredQuantity) {
 	}
 }
 
-async function reserve(productId, quantity) {
+async function reserve(productId, quantity, orderId) {
 	try {
 		// product service expects a quantity delta (can be negative to reduce stock)
-		const res = await client.patch(`/api/products/${productId}/stock`, { quantity: -Math.abs(quantity) });
+		const body = { quantity: -Math.abs(quantity) };
+		if (orderId) body.orderId = orderId;
+		const res = await client.patch(`/api/products/${productId}/stock`, body);
 		return { ok: true, product: res.data };
 	} catch (err) {
 		error('reserve error', err.message || err);
 		return { ok: false, reason: 'Reserve failed' };
+	}
+}
+
+async function clearReservation(productId, orderId) {
+	try {
+		const body = {};
+		if (orderId) body.orderId = orderId;
+		const res = await client.patch(`/api/products/${productId}/clear-reservation`, body);
+		return { ok: true, product: res.data };
+	} catch (err) {
+		error('clearReservation error', err.message || err);
+		return { ok: false, reason: 'Clear reservation failed' };
 	}
 }
 
@@ -38,4 +52,4 @@ async function release(productId, quantity) {
 	}
 }
 
-module.exports = { checkInventory, reserve, release };
+module.exports = { checkInventory, reserve, release, clearReservation };

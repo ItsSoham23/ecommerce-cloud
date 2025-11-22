@@ -1,11 +1,11 @@
 /*
- One-off script to delete orders except those with status FAILED or CANCELLED.
- Usage: node scripts/cleanupOrders.js
- It uses the same LocalStack/DynamoDB config as the service (reads env).
+  cleanupOrders.js
+  One-off script to delete all orders from the orders DynamoDB table used by order-service.
+  Usage: from the repo root or microservices/order-service directory with env configured for LocalStack:
+    node scripts/cleanupOrders.js
 */
 
 const { DynamoDB } = require('aws-sdk');
-require('dotenv').config();
 
 const TABLE_NAME = process.env.DYNAMODB_ORDERS_TABLE || 'orders';
 
@@ -19,7 +19,6 @@ if (process.env.USE_LOCALSTACK === 'true' || process.env.LOCALSTACK_ENDPOINT) {
 }
 
 const client = new DynamoDB.DocumentClient(config);
-const db = new DynamoDB(config);
 
 async function scanAll() {
   const items = [];
@@ -43,18 +42,18 @@ async function deleteByKey(key) {
     const items = await scanAll();
     console.log('Total orders found:', items.length);
 
-    const toDelete = items.filter(it => {
-      const status = (it.status || '').toUpperCase();
-      return !(status === 'FAILED' || status === 'CANCELLED');
-    });
+    if (items.length === 0) {
+      console.log('No orders to delete.');
+      return;
+    }
 
-    console.log('Orders to delete (count):', toDelete.length);
-    for (const itm of toDelete) {
+    for (const itm of items) {
       console.log('Deleting orderId:', itm.orderId, 'status:', itm.status || '<none>');
       await deleteByKey({ orderId: itm.orderId });
     }
 
-    console.log('Done. Deleted', toDelete.length, 'orders.');
+    const remaining = await scanAll();
+    console.log('Done. Remaining orders in table:', remaining.length);
   } catch (e) {
     console.error('Error during cleanup:', e);
     process.exit(2);

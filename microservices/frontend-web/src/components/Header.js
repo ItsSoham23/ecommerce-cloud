@@ -26,6 +26,7 @@ function Header() {
         <nav className="nav">
           <Link to="/products">Products</Link>
           {user && <Link to="/profile">Profile</Link>}
+          {user && <Link to="/orders">My Orders</Link>}
         </nav>
 
         <div className="header-actions">

@@ -62,6 +62,18 @@ class OrderModel {
 		return res.Item;
 	}
 
+	static async getOrdersByUser(userId) {
+		const params = {
+			TableName: TABLE_NAME,
+			FilterExpression: 'userId = :u',
+			ExpressionAttributeValues: {
+				':u': userId
+			}
+		};
+		const res = await dynamoDB.scan(params).promise();
+		return res.Items || [];
+	}
+
 	static async updateOrder(orderId, updates) {
 		const ExpressionAttributeNames = {};
 		const ExpressionAttributeValues = {};

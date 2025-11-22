@@ -53,6 +53,17 @@ const Product = sequelize.define('Product', {
     defaultValue: true,
     field: 'is_active'
   }
+  ,
+  reservedByOrderId: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: 'reserved_by_order_id'
+  },
+  reservedUntil: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'reserved_until'
+  }
 }, {
   tableName: 'products',
   timestamps: true,

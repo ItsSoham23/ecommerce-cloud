@@ -25,6 +25,8 @@ async function handlePaymentMessage({ topic, message }) {
             // Cart API: DELETE /api/cart/:userId/items/:productId
             await cartClient.delete(`/api/cart/${order.userId}/items/${it.productId}`);
             log('Removed product from cart', it.productId, 'for user', order.userId);
+            // Clear any reservation on the product (if set)
+            try { await inventoryService.clearReservation(it.productId, orderId); } catch (e) { error('clear reservation after payment succeeded', e); }
           } catch (e) {
             // Non-fatal — log and continue
             error('Failed to remove item from cart', it.productId, e.message || e);

@@ -16,6 +16,11 @@ export const getUserById = async (userId) => {
   return response.data;
 };
 
+export const loginUser = async (email, password) => {
+  const response = await axios.post(`${USER_SERVICE}/api/users/login`, { email, password });
+  return response.data;
+};
+
 export const getUserByEmail = async (email) => {
   const response = await axios.get(`${USER_SERVICE}/api/users/email/${email}`);
   return response.data;
@@ -78,24 +83,28 @@ export const getCartTotal = async (userId) => {
   return response.data;
 };
 
-// Order Service APIs (for future use)
+// Order Service APIs
+const ORDER_SERVICE = process.env.REACT_APP_ORDER_SERVICE || 'http://localhost:8084';
+
 export const createOrder = async (orderData) => {
-  const response = await axios.post(`${USER_SERVICE}/api/orders`, orderData);
+  const response = await axios.post(`${ORDER_SERVICE}/api/orders`, orderData);
   return response.data;
 };
 
 export const getOrderById = async (orderId) => {
-  const response = await axios.get(`${USER_SERVICE}/api/orders/${orderId}`);
+  const response = await axios.get(`${ORDER_SERVICE}/api/orders/${orderId}`);
   return response.data;
 };
 
 export const getUserOrders = async (userId) => {
-  const response = await axios.get(`${USER_SERVICE}/api/orders/user/${userId}`);
+  const response = await axios.get(`${ORDER_SERVICE}/api/orders/user/${userId}`);
   return response.data;
 };
 
-// Payment Service APIs (for future use)
+// Payment Service APIs
+const PAYMENT_SERVICE = process.env.REACT_APP_PAYMENT_SERVICE || 'http://localhost:8085';
+
 export const processPayment = async (paymentData) => {
-  const response = await axios.post(`${USER_SERVICE}/api/payments`, paymentData);
+  const response = await axios.post(`${PAYMENT_SERVICE}/api/payments`, paymentData);
   return response.data;
 };

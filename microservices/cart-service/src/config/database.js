@@ -1,5 +1,4 @@
 const AWS = require('aws-sdk');
-const { jsx } = require('react/jsx-runtime');
 require('dotenv').config();
 
 // Configure AWS DynamoDB
@@ -21,5 +20,3 @@ const dynamoDB = new AWS.DynamoDB.DocumentClient(dynamoDBConfig);
 const dynamoDBClient = new AWS.DynamoDB(dynamoDBConfig);
 
 module.exports = { dynamoDB, dynamoDBClient };
-
-//uoiahdfoehoeh

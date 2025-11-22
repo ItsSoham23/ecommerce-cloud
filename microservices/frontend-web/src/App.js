@@ -11,6 +11,8 @@ import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Profile from './pages/Profile';
+import Orders from './pages/Orders';
+import Payment from './pages/Payment';
 import './styles/App.css';
 
 // Protected Route Component
@@ -36,6 +38,8 @@ function App() {
                 <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
                 <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                 <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+                <Route path="/payment/:orderId" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
               </Routes>
             </main>
           </div>

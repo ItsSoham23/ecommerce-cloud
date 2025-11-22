@@ -1,5 +1,8 @@
 const User = require('../models/user');
 
+const bcrypt = require('bcrypt');
+const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '10', 10);
+
 async function createUser(userDTO) {
   const exists = await User.findOne({ where: { email: userDTO.email } });
   if (exists) {
@@ -8,11 +11,13 @@ async function createUser(userDTO) {
     throw err;
   }
 
+  const hashed = userDTO.password ? await bcrypt.hash(userDTO.password, SALT_ROUNDS) : null;
+
   const user = await User.create({
     email: userDTO.email,
     firstName: userDTO.firstName,
     lastName: userDTO.lastName,
-    password: userDTO.password,
+    password: hashed,
     phone: userDTO.phone,
     isActive: true
   });
@@ -43,7 +48,9 @@ async function updateUser(id, userDTO) {
   user.firstName = userDTO.firstName;
   user.lastName = userDTO.lastName;
   user.phone = userDTO.phone;
-  if (userDTO.password) user.password = userDTO.password;
+  if (userDTO.password) {
+    user.password = await bcrypt.hash(userDTO.password, SALT_ROUNDS);
+  }
 
   const updated = await user.save();
   return toDTO(updated);
@@ -67,6 +74,37 @@ function toDTO(user) {
   };
 }
 
+async function authenticate(email, password) {
+  const user = await User.findOne({ where: { email } });
+  if (!user) return null;
+  // If password field is missing, fail
+  if (!user.password) return null;
+
+  // Detect bcrypt hash (starts with $2a$ or $2b$ or $2y$)
+  const isHashed = typeof user.password === 'string' && user.password.startsWith('$2');
+  if (isHashed) {
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return null;
+    return toDTO(user);
+  }
+
+  // Legacy plaintext password in DB — compare directly and migrate to hashed password
+  if (user.password === password) {
+    // Re-hash and persist
+    try {
+      const hashed = await bcrypt.hash(password, SALT_ROUNDS);
+      user.password = hashed;
+      await user.save();
+    } catch (e) {
+      // If migrate fails, still allow login (but log error)
+      console.error('Password migration failed for user', user.email, e && e.message);
+    }
+    return toDTO(user);
+  }
+
+  return null;
+}
+
 module.exports = {
   createUser,
   getUserById,
@@ -74,4 +112,5 @@ module.exports = {
   getAllUsers,
   updateUser,
   deleteUser
+  ,authenticate
 };

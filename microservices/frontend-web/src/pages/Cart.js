@@ -68,14 +68,14 @@ function Cart() {
             <div key={item.productId} className="cart-item">
               <div className="item-image">
                 <img 
-                  src={item.product?.imageUrl || '/placeholder-product.png'} 
-                  alt={item.product?.name}
+                  src={item.product?.imageUrl || item.imageUrl || '/placeholder-product.png'} 
+                  alt={item.product?.name || item.productName}
                 />
               </div>
 
               <div className="item-details">
-                <h3>{item.product?.name}</h3>
-                <p className="item-price">${parseFloat(item.product?.price).toFixed(2)}</p>
+                <h3>{item.product?.name || item.productName}</h3>
+                <p className="item-price">${(parseFloat(item.product?.price ?? item.price ?? 0)).toFixed(2)}</p>
               </div>
 
               <div className="item-quantity">
@@ -94,7 +94,7 @@ function Cart() {
               </div>
 
               <div className="item-total">
-                <span>${(parseFloat(item.product?.price) * item.quantity).toFixed(2)}</span>
+                <span>${((parseFloat(item.product?.price ?? item.price ?? 0)) * item.quantity).toFixed(2)}</span>
               </div>
 
               <button 
@@ -112,7 +112,7 @@ function Cart() {
           
           <div className="summary-row">
             <span>Subtotal:</span>
-            <span>${cart.total?.toFixed(2) || '0.00'}</span>
+            <span>${(cart.totalAmount ?? cart.total ?? 0).toFixed(2)}</span>
           </div>
 
           <div className="summary-row">
@@ -122,12 +122,12 @@ function Cart() {
 
           <div className="summary-row">
             <span>Tax:</span>
-            <span>${(cart.total * 0.1).toFixed(2)}</span>
+            <span>${((cart.totalAmount ?? cart.total ?? 0) * 0.1).toFixed(2)}</span>
           </div>
 
           <div className="summary-total">
             <span>Total:</span>
-            <span>${(cart.total + 10 + cart.total * 0.1).toFixed(2)}</span>
+            <span>${((cart.totalAmount ?? cart.total ?? 0) + 10 + (cart.totalAmount ?? cart.total ?? 0) * 0.1).toFixed(2)}</span>
           </div>
 
           <button className="btn-primary btn-checkout" onClick={handleCheckout}>

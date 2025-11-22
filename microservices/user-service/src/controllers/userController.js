@@ -1,10 +1,14 @@
 const { validationResult } = require('express-validator');
 const userService = require('../services/userService');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 
 async function createUser(req, res, next) {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    if (!errors.isEmpty()) return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
 
     const created = await userService.createUser(req.body);
     return res.status(201).json(created);
@@ -64,6 +68,21 @@ async function deleteUser(req, res, next) {
   }
 }
 
+async function login(req, res, next) {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+    const user = await userService.authenticate(email, password);
+    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+    // Sign JWT
+    const payload = { sub: user.id, email: user.email };
+    const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    return res.json({ accessToken, expiresIn: JWT_EXPIRES_IN, user });
+  } catch (e) {
+    next(e);
+  }
+}
+
 module.exports = {
   createUser,
   getUserById,
@@ -71,4 +90,5 @@ module.exports = {
   getAllUsers,
   updateUser,
   deleteUser
+  ,login
 };

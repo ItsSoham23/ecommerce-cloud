@@ -27,6 +27,7 @@ services:
       NODE_ENV: development
       PORT: 8083
       USE_LOCALSTACK: "true"
+      # Use the local localstack service available in this compose project
       LOCALSTACK_ENDPOINT: http://localstack:4566
       AWS_REGION: us-east-1
       DYNAMODB_TABLE: Carts

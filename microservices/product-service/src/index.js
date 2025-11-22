@@ -65,8 +65,13 @@ const startServer = async () => {
       console.log(`📈 Metrics: http://localhost:${PORT}/metrics`);
     });
   } catch (error) {
-    console.error('❌ Unable to start server:', error);
-    process.exit(1);
+    console.error('❌ Database unavailable, starting Product Service in degraded mode:', error && error.message ? error.message : error);
+    // Start the server in degraded mode so endpoints like GET /api/products can still respond (using fallbacks)
+    app.listen(PORT, () => {
+      console.log(`🚀 Product Service (degraded) running on port ${PORT}`);
+      console.log(`📊 Health: http://localhost:${PORT}/health`);
+      console.log(`📈 Metrics: http://localhost:${PORT}/metrics`);
+    });
   }
 };
 
