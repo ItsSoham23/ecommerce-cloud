@@ -1,3 +1,28 @@
+// Terraform scaffold for GCP resources (Dataproc for Flink job)
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 4.0"
+    }
+  }
+}
+
+provider "google" {
+  project = var.project
+  region  = var.region
+}
+
+variable "project" {
+  type = string
+}
+
+variable "region" {
+  type    = string
+  default = "us-central1"
+}
+
+# Dataproc cluster and job definitions would go here. This is a placeholder scaffold.
 # terraform/gcp/main.tf
 
 terraform {

@@ -72,6 +72,14 @@ const startServer = async () => {
     await CartModel.createTable();
     console.log('✅ DynamoDB table initialized');
     
+      // Start product.deleted consumer so carts are cleaned up on product deletions
+      try {
+        const productDeletedConsumer = require('./services/productDeletedConsumer');
+        productDeletedConsumer.start().catch(e => console.error('productDeletedConsumer failed', e));
+      } catch (e) {
+        console.error('Failed to start productDeletedConsumer', e);
+      }
+    
     app.listen(PORT, () => {
       console.log(`🚀 Cart Service running on port ${PORT}`);
       console.log(`📊 Health: http://localhost:${PORT}/health`);

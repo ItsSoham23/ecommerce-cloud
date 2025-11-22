@@ -16,6 +16,8 @@
     "express-validator": "^7.3.0",
     "helmet": "^7.2.0",
     "prom-client": "^14.2.0"
+    ,
+    "kafkajs": "^2.2.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

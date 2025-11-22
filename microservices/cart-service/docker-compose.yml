@@ -18,6 +18,7 @@ services:
       start_period: 10s
 
   cart-service:
+    build: .
     image: cart-service:latest
     container_name: cart-service-app
     ports:
@@ -30,6 +31,7 @@ services:
       AWS_REGION: us-east-1
       DYNAMODB_TABLE: Carts
       PRODUCT_SERVICE_URL: http://host.docker.internal:8082
+      KAFKA_BROKERS: host.docker.internal:9092
     depends_on:
       localstack:
         condition: service_healthy

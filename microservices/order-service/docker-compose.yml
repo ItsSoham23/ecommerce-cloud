@@ -1,0 +1,60 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://host.docker.internal:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+  order-service:
+    build: .
+    image: order-service:latest
+    ports:
+      - "8084:8084"
+    environment:
+      NODE_ENV: development
+      PORT: 8084
+      USE_LOCALSTACK: "true"
+      # Use the existing LocalStack started by cart-service (mapped to host port 4567)
+      LOCALSTACK_ENDPOINT: http://host.docker.internal:4567
+      AWS_REGION: us-east-1
+      DYNAMODB_ORDERS_TABLE: orders
+      CART_SERVICE_URL: http://host.docker.internal:8083
+      PRODUCT_SERVICE_URL: http://host.docker.internal:8082
+      KAFKA_BROKERS: kafka:9092
+    depends_on:
+      - kafka
+
+  payment-service:
+    build: ../payment-service
+    image: payment-service:latest
+    ports:
+      - "8085:8085"
+    environment:
+      NODE_ENV: development
+      PORT: 8085
+      KAFKA_BROKERS: kafka:9092
+      PAYMENT_SUCCESS_RATE: 0.85
+      PAYMENT_PROCESSING_MS: 800
+    depends_on:
+      - kafka
+
+# LocalStack uses a host bind for persistence to avoid permission/lock issues
