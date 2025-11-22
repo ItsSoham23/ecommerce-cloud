@@ -59,11 +59,13 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 						const prodRes = await productClient.get(`/api/products/${it.productId}`);
 						const price = prodRes && prodRes.data && prodRes.data.price ? parseFloat(prodRes.data.price) : 0;
 						computed += price * (it.quantity || 0);
+						log(`Fetched product ${it.productId} price=${price} qty=${it.quantity} subtotal=${price * (it.quantity || 0)}`);
 					} catch (pe) {
 						// If fetching product fails, log and continue (treat price as 0)
 						error(`Failed to fetch product ${it.productId} for total calculation`, pe && pe.message ? pe.message : pe);
 					}
 				}
+				log(`Computed total from products: ${computed}`);
 				total = computed;
 			} catch (e) {
 				log('Unable to compute total from provided items, falling back to cart total', e.message || e);
