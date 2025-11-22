@@ -4,8 +4,12 @@ const kafkaService = require('./kafkaService');
 const OrderModel = require('../models/Order');
 const { log, error } = require('../utils/logger');
 
-const CART_SERVICE_URL = process.env.CART_SERVICE_URL || 'http://localhost:8083';
+// When running inside Docker on Windows, services in other compose projects
+// are reachable via host.docker.internal. Allow overriding via env var.
+const CART_SERVICE_URL = process.env.CART_SERVICE_URL || 'http://host.docker.internal:8083';
 const cartClient = axios.create({ baseURL: CART_SERVICE_URL, timeout: 5000 });
+const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || 'http://host.docker.internal:8082';
+const productClient = axios.create({ baseURL: PRODUCT_SERVICE_URL, timeout: 5000 });
 
 const PAYMENT_TIMEOUT_MS = parseInt(process.env.ORDER_PAYMENT_TIMEOUT_MS || '10000', 10);
 
@@ -45,13 +49,42 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 
 	// 3) Compute total if not provided
 	let total = totalProvided;
-	if (!total) {
-		try {
-			const totRes = await cartClient.get(`/api/cart/${userId}/total`);
-			total = totRes.data && totRes.data.total ? totRes.data.total : 0;
-		} catch (e) {
-			log('Unable to fetch cart total, defaulting to 0', e.message || e);
-			total = 0;
+	if (typeof total === 'undefined' || total === null) {
+		// If items were provided in the request, derive total by fetching product prices
+		if (items && Array.isArray(items) && items.length > 0) {
+			try {
+				let computed = 0;
+				for (const it of items) {
+					try {
+						const prodRes = await productClient.get(`/api/products/${it.productId}`);
+						const price = prodRes && prodRes.data && prodRes.data.price ? parseFloat(prodRes.data.price) : 0;
+						computed += price * (it.quantity || 0);
+					} catch (pe) {
+						// If fetching product fails, log and continue (treat price as 0)
+						error(`Failed to fetch product ${it.productId} for total calculation`, pe && pe.message ? pe.message : pe);
+					}
+				}
+				total = computed;
+			} catch (e) {
+				log('Unable to compute total from provided items, falling back to cart total', e.message || e);
+				total = null; // trigger cart total fetch below
+			}
+		}
+
+		if (typeof total === 'undefined' || total === null) {
+			try {
+				const totRes = await cartClient.get(`/api/cart/${userId}/total`);
+				log('Cart total response:', JSON.stringify(totRes && totRes.data ? totRes.data : totRes));
+				if (totRes && totRes.data) {
+					// cart-service returns { totalAmount, itemCount, ... }
+					total = typeof totRes.data.totalAmount !== 'undefined' ? totRes.data.totalAmount : (totRes.data.total || 0);
+				} else {
+					total = 0;
+				}
+			} catch (e) {
+				log('Unable to fetch cart total, defaulting to 0', e.message || e);
+				total = 0;
+			}
 		}
 	}
 
@@ -75,12 +108,15 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 		});
 		log('Published payment.requested for', saved.orderId);
 	} catch (e) {
-		// If produce failed, rollback reservations and mark order failed
-		for (const r of reservations) {
-			try { await inventoryService.release(r.productId, r.quantity); } catch (ex) { error('release during kafka failure', ex); }
+		// If produce failed, do NOT fail the API call. Log and mark the order for later retry.
+		error('Kafka publish failed for payment.requested', e && e.message ? e.message : e);
+		try {
+			await OrderModel.updateOrder(saved.orderId, { failureReason: 'kafka_publish_failed' });
+		} catch (upErr) {
+			error('Failed to update order with failureReason', upErr && upErr.message ? upErr.message : upErr);
 		}
-		await OrderModel.updateOrder(saved.orderId, { status: 'FAILED', failureReason: 'kafka_publish_failed' });
-		throw new Error('Failed to publish payment request');
+		// Return the saved order so the client can proceed; a background retry should handle publishing.
+		return saved;
 	}
 
 	// Return the saved order (client or payment consumer will update status later)
