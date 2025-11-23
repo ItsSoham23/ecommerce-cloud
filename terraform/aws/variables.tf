@@ -48,3 +48,15 @@ variable "database_subnet_cidrs" {
   type        = list(string)
   default     = ["10.0.201.0/24", "10.0.202.0/24", "10.0.203.0/24"]
 }
+
+variable "s3_bucket_name" {
+  description = "S3 bucket name for raw uploads"
+  type        = string
+  default     = "ecommerce-raw-bucket-local"
+}
+
+variable "cluster_name" {
+  description = "EKS cluster name"
+  type        = string
+  default     = "ecommerce-eks-cluster"
+}

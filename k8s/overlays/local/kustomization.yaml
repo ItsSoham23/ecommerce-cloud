@@ -9,6 +9,6 @@ resources:
   - servicemonitors.yaml
   - localstack.yaml
   - postgres.yaml
-  - kafka.yaml
+  - kafka-external-service.yaml
   # frontend k8s manifests are currently empty in the repo; include them when populated
 

@@ -18,8 +18,8 @@ module "vpc" {
   create_database_subnet_route_table = true
 
   # Enable NAT Gateway for private subnets (required for EKS nodes to pull images)
-  enable_nat_gateway = true
-  single_nat_gateway = false  # One NAT per AZ for high availability
+  enable_nat_gateway     = true
+  single_nat_gateway     = false # One NAT per AZ for high availability
   one_nat_gateway_per_az = true
 
   # Enable DNS
@@ -28,11 +28,11 @@ module "vpc" {
 
   # Tags for Kubernetes (required for EKS)
   public_subnet_tags = {
-    "kubernetes.io/role/elb" = "1"  # For public load balancers
+    "kubernetes.io/role/elb" = "1" # For public load balancers
   }
 
   private_subnet_tags = {
-    "kubernetes.io/role/internal-elb" = "1"  # For internal load balancers
+    "kubernetes.io/role/internal-elb" = "1" # For internal load balancers
   }
 
   tags = local.common_tags
@@ -42,7 +42,7 @@ module "vpc" {
 resource "aws_vpc_endpoint" "s3" {
   vpc_id       = module.vpc.vpc_id
   service_name = "com.amazonaws.${var.aws_region}.s3"
-  
+
   route_table_ids = concat(
     module.vpc.private_route_table_ids,
     module.vpc.database_route_table_ids

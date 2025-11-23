@@ -38,9 +38,10 @@ function Start-Kafka {
     $zk = docker ps --filter "name=^local-zookeeper$" --format "{{.Names}}"
     if (-not $zk) {
         docker run -d --name local-zookeeper --network $networkName `
-          -e ALLOW_ANONYMOUS_LOGIN=yes `
-          bitnami/zookeeper:latest | Out-Null
-        Write-Host "Started local-zookeeper"
+          -e ZOOKEEPER_CLIENT_PORT=2181 `
+          -e ZOOKEEPER_TICK_TIME=2000 `
+          confluentinc/cp-zookeeper:7.4.0 | Out-Null
+        Write-Host "Started local-zookeeper (confluentinc/cp-zookeeper:7.4.0)"
     } else {
         Write-Host "local-zookeeper already running"
     }
@@ -53,9 +54,10 @@ function Start-Kafka {
           -e KAFKA_ZOOKEEPER_CONNECT=local-zookeeper:2181 `
           -e KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092 `
           -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://host.docker.internal:9092 `
+          -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 `
           -p 9092:9092 `
-          bitnami/kafka:latest | Out-Null
-        Write-Host "Started local-kafka (advertised as host.docker.internal:9092)"
+          confluentinc/cp-kafka:7.4.0 | Out-Null
+        Write-Host "Started local-kafka (confluentinc/cp-kafka:7.4.0, advertised as host.docker.internal:9092)"
     } else {
         Write-Host "local-kafka already running"
     }

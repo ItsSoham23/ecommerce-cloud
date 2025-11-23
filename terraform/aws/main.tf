@@ -1,19 +1,6 @@
 // Terraform skeleton for AWS resources (EKS, RDS, S3, Lambda)
 // NOTE: This is a scaffold. Fill in provider credentials and variables before applying.
 
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 4.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-}
-
 // Example S3 bucket for raw uploads
 resource "aws_s3_bucket" "raw_bucket" {
   bucket = var.s3_bucket_name
@@ -41,26 +28,11 @@ resource "aws_s3_bucket" "raw_bucket" {
 # }
 
 // Lambda (serverless) will be managed separately in lambda.tf
-
-variable "aws_region" {
-  type    = string
-  default = "us-east-1"
-}
-
-variable "s3_bucket_name" {
-  type    = string
-  default = "ecommerce-raw-bucket-local"
-}
-
-variable "cluster_name" {
-  type    = string
-  default = "ecommerce-eks-cluster"
-}
 # terraform/aws/main.tf
 
 terraform {
   required_version = ">= 1.5.0"
-  
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -78,7 +50,7 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-  
+
   default_tags {
     tags = {
       Project     = var.project_name
@@ -98,7 +70,7 @@ locals {
     Environment = var.environment
     ManagedBy   = "terraform"
   }
-  
+
   # Will use this for resource naming
   name_prefix = "${var.project_name}-${var.environment}"
 }
