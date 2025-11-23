@@ -74,6 +74,7 @@ resource "google_project_service" "required_apis" {
     "dataproc.googleapis.com",
     "firestore.googleapis.com",
     "sqladmin.googleapis.com",
+    "secretmanager.googleapis.com",
     "servicenetworking.googleapis.com",
     "cloudresourcemanager.googleapis.com",
   ])

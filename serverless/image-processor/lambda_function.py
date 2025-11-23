@@ -7,6 +7,8 @@ import json
 import boto3
 import os
 from io import BytesIO
+from datetime import datetime
+from kafka import KafkaProducer
 from PIL import Image
 import logging
 
@@ -19,6 +21,10 @@ s3_client = boto3.client('s3')
 
 # Configuration
 PROCESSED_BUCKET = os.environ.get('PROCESSED_BUCKET', 'processed-images-bucket')
+KAFKA_BOOTSTRAP_SERVERS = os.environ.get('KAFKA_BOOTSTRAP_SERVERS')
+KAFKA_TOPIC = os.environ.get('KAFKA_TOPIC', 'product-images.processed')
+
+_kafka_producer = None
 
 # Image sizes to generate: (width, height, name)
 IMAGE_SIZES = [
@@ -104,7 +110,7 @@ def process_image(source_bucket, source_key):
     # Process and upload each size
     for width, height, size_name in IMAGE_SIZES:
         resized_image = resize_image(image, width, height)
-        upload_image(resized_image, folder, base_name, width, height, size_name, source_key)
+        upload_image(resized_image, folder, base_name, width, height, size_name, source_key, source_bucket)
         logger.info(f"Created {size_name} version: {width}x{height}")
 
 
@@ -148,7 +154,7 @@ def resize_image(image, target_width, target_height):
     return final_image
 
 
-def upload_image(image, folder, base_name, width, height, size_name, original_key):
+def upload_image(image, folder, base_name, width, height, size_name, original_key, source_bucket):
     """
     Convert image to JPEG and upload to S3
     """
@@ -175,6 +181,50 @@ def upload_image(image, folder, base_name, width, height, size_name, original_ke
     )
     
     logger.info(f"Uploaded to s3://{PROCESSED_BUCKET}/{new_key}")
+    
+    event_payload = {
+        'processed_bucket': PROCESSED_BUCKET,
+        'processed_key': new_key,
+        'original_bucket': source_bucket,
+        'original_key': original_key,
+        'size': size_name,
+        'dimensions': f'{width}x{height}',
+        'processed_at': datetime.utcnow().isoformat() + 'Z'
+    }
+
+    publish_kafka_event(event_payload)
+
+
+def get_kafka_producer():
+    global _kafka_producer
+    if _kafka_producer:
+        return _kafka_producer
+    if not KAFKA_BOOTSTRAP_SERVERS:
+        return None
+    try:
+        servers = [s.strip() for s in KAFKA_BOOTSTRAP_SERVERS.split(',') if s.strip()]
+        if not servers:
+            return None
+        _kafka_producer = KafkaProducer(
+            bootstrap_servers=servers,
+            value_serializer=lambda v: json.dumps(v).encode('utf-8')
+        )
+    except Exception as exc:
+        logger.warning("Kafka producer init failed: %s", exc)
+        _kafka_producer = None
+    return _kafka_producer
+
+
+def publish_kafka_event(payload):
+    producer = get_kafka_producer()
+    if not producer:
+        return
+    try:
+        producer.send(KAFKA_TOPIC, payload)
+        producer.flush(timeout=5)
+        logger.info("Published Kafka event for %s", payload.get('processed_key'))
+    except Exception as exc:
+        logger.warning("Failed to publish Kafka event: %s", exc)
 
 
 # For local testing
