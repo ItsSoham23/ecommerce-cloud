@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: order-service-servicemonitor
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: order-service
+  namespaceSelector:
+    matchNames:
+      - ecommerce
+  endpoints:
+    - port: http
+      interval: 30s

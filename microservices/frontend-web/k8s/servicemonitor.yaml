@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: frontend-web-servicemonitor
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: frontend-web
+  namespaceSelector:
+    matchNames:
+      - ecommerce
+  endpoints:
+    - port: http
+      interval: 30s

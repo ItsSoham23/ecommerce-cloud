@@ -1,0 +1,37 @@
+apiVersion: monitoring.coreos.com/v1
+kind: List
+items:
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      name: cart-service
+      labels:
+        release: monitoring
+    spec:
+      selector:
+        matchLabels:
+          app: cart-service
+      namespaceSelector:
+        matchNames:
+          - ecommerce
+      endpoints:
+        - port: http
+          path: /metrics
+          interval: 30s
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      name: order-service
+      labels:
+        release: monitoring
+    spec:
+      selector:
+        matchLabels:
+          app: order-service
+      namespaceSelector:
+        matchNames:
+          - ecommerce
+      endpoints:
+        - port: http
+          path: /metrics
+          interval: 30s

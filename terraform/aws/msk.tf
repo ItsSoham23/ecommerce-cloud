@@ -105,7 +105,7 @@ resource "aws_msk_cluster" "main" {
   number_of_broker_nodes = 3
 
   broker_node_group_info {
-    instance_type = "kafka.t3.small"  # Smallest for testing
+    instance_type = "kafka.m5.large"  # Use a supported MSK broker instance type
     client_subnets = module.vpc.private_subnets
 
     storage_info {

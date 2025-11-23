@@ -44,7 +44,7 @@ resource "random_password" "rds_password" {
 resource "aws_secretsmanager_secret" "rds_password" {
   name = "${local.name_prefix}-rds-password"
   
-  recovery_window_in_days = 0  # Set to 0 for testing (immediate deletion)
+  recovery_window_in_days = 7  # Small recovery window for testing
 
   tags = local.common_tags
 }
