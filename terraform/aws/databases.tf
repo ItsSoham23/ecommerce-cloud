@@ -43,8 +43,8 @@ resource "random_password" "rds_password" {
 # Store password in AWS Secrets Manager
 resource "aws_secretsmanager_secret" "rds_password" {
   name = "${local.name_prefix}-rds-password"
-  
-  recovery_window_in_days = 7  # Small recovery window for testing
+
+  recovery_window_in_days = 7 # Small recovery window for testing
 
   tags = local.common_tags
 }
@@ -59,12 +59,12 @@ resource "aws_db_instance" "main" {
   identifier = "${local.name_prefix}-db"
 
   # Engine
-  engine               = "postgres"
-  engine_version       = "15.4"
-  instance_class       = "db.t3.micro"  # Free tier eligible, smallest for testing
+  engine         = "postgres"
+  engine_version = "15.4"
+  instance_class = "db.t3.micro" # Free tier eligible, smallest for testing
 
   # Storage
-  allocated_storage     = 20  # Minimum for postgres
+  allocated_storage     = 20 # Minimum for postgres
   max_allocated_storage = 100
   storage_encrypted     = true
   storage_type          = "gp3"
@@ -76,23 +76,23 @@ resource "aws_db_instance" "main" {
   port     = 5432
 
   # Network
-  multi_az               = false  # Set to false for cost savings during testing
+  multi_az               = false # Set to false for cost savings during testing
   db_subnet_group_name   = module.vpc.database_subnet_group_name
   vpc_security_group_ids = [aws_security_group.rds.id]
   publicly_accessible    = false
 
   # Backup
   backup_retention_period = 7
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "Mon:04:00-Mon:05:00"
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "Mon:04:00-Mon:05:00"
 
   # Monitoring
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
-  performance_insights_enabled    = false  # Disable for cost savings
+  performance_insights_enabled    = false # Disable for cost savings
 
   # Deletion protection
-  deletion_protection       = false  # Set to false for easy testing/cleanup
-  skip_final_snapshot      = true   # Set to true for testing
+  deletion_protection       = false # Set to false for easy testing/cleanup
+  skip_final_snapshot       = true  # Set to true for testing
   final_snapshot_identifier = null
 
   tags = local.common_tags
@@ -104,10 +104,10 @@ resource "aws_db_instance" "main" {
 
 # Cart sessions table
 resource "aws_dynamodb_table" "cart_sessions" {
-  name           = "${local.name_prefix}-cart-sessions"
-  billing_mode   = "PAY_PER_REQUEST"  # On-demand pricing, no minimum cost
-  hash_key       = "session_id"
-  range_key      = "user_id"
+  name         = "${local.name_prefix}-cart-sessions"
+  billing_mode = "PAY_PER_REQUEST" # On-demand pricing, no minimum cost
+  hash_key     = "session_id"
+  range_key    = "user_id"
 
   attribute {
     name = "session_id"

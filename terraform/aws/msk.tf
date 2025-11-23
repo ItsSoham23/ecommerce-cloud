@@ -7,7 +7,7 @@
 # KMS key for MSK encryption
 resource "aws_kms_key" "msk" {
   description             = "KMS key for MSK encryption"
-  deletion_window_in_days = 7  # Minimum for testing
+  deletion_window_in_days = 7 # Minimum for testing
   enable_key_rotation     = true
 
   tags = local.common_tags
@@ -105,12 +105,12 @@ resource "aws_msk_cluster" "main" {
   number_of_broker_nodes = 3
 
   broker_node_group_info {
-    instance_type = "kafka.m5.large"  # Use a supported MSK broker instance type
+    instance_type  = "kafka.m5.large" # Use a supported MSK broker instance type
     client_subnets = module.vpc.private_subnets
 
     storage_info {
       ebs_storage_info {
-        volume_size = 100  # GB
+        volume_size = 100 # GB
       }
     }
 

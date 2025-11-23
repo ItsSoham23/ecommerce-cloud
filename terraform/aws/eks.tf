@@ -50,7 +50,7 @@ module "eks" {
   eks_managed_node_groups = {
     # General purpose node group
     general = {
-      name = "general-ng"  # Shortened name
+      name = "general-ng" # Shortened name
 
       instance_types = ["t3.medium"]
       capacity_type  = "ON_DEMAND"
@@ -79,7 +79,7 @@ module "eks" {
 
     # Compute-intensive node group (optional, for future use)
     compute = {
-      name = "compute-ng"  # Shortened name
+      name = "compute-ng" # Shortened name
 
       instance_types = ["t3.large"]
       capacity_type  = "ON_DEMAND"
@@ -102,7 +102,7 @@ module "eks" {
         {
           key    = "compute"
           value  = "true"
-          effect = "NO_SCHEDULE"  # Must be uppercase with underscore
+          effect = "NO_SCHEDULE" # Must be uppercase with underscore
         }
       ]
 

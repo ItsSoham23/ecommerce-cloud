@@ -76,6 +76,8 @@ spec:
               value: "true"
             - name: LOCALSTACK_ENDPOINT
               value: "http://localstack:4566"
+            - name: KAFKA_BROKERS
+              value: "host.docker.internal:9092"
             - name: DB_HOST
               value: postgres
             - name: DB_PORT
@@ -179,6 +181,10 @@ spec:
               value: "http://localstack:4566"
             - name: ORDERS_TABLE
               value: "orders-table"
+            - name: PRODUCT_SERVICE_URL
+              value: "http://product-service:8082"
+            - name: CART_SERVICE_URL
+              value: "http://cart-service:8083"
           resources:
             requests:
               cpu: "200m"
@@ -204,18 +210,12 @@ spec:
       labels:
         app: payment-service
     spec:
-      initContainers:
-        - name: wait-for-kafka
-          image: busybox
-          command:
-            - sh
-            - -c
-            - |-
-              until nc -z kafka 9092; do echo waiting for kafka; sleep 1; done
-          imagePullPolicy: IfNotPresent
       containers:
         - name: payment-service
           image: payment-service:latest
+          env:
+            - name: KAFKA_BROKERS
+              value: "host.docker.internal:9092"
           ports:
             - containerPort: 8085
           resources:

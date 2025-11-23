@@ -188,12 +188,12 @@ resource "aws_iam_role_policy" "lambda_image_processor" {
 resource "aws_lambda_function" "image_processor" {
   filename         = "${path.module}/../../lambda-placeholder.zip"
   function_name    = "${local.name_prefix}-image-processor"
-  role            = aws_iam_role.lambda_image_processor.arn
-  handler         = "lambda_function.lambda_handler"
+  role             = aws_iam_role.lambda_image_processor.arn
+  handler          = "lambda_function.lambda_handler"
   source_code_hash = filebase64sha256("${path.module}/../../lambda-placeholder.zip")
-  runtime         = "python3.11"
-  timeout         = 60
-  memory_size     = 512
+  runtime          = "python3.11"
+  timeout          = 60
+  memory_size      = 512
 
   environment {
     variables = {
