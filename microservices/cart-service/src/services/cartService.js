@@ -73,6 +73,18 @@ class CartService {
         });
       }
 
+      // Normalize/merge any duplicate items (defensive) so the cart keeps one entry per product
+      const merged = {};
+      for (const it of cart.items) {
+        const id = String(it.productId);
+        if (!merged[id]) {
+          merged[id] = { ...it, quantity: Number(it.quantity) };
+        } else {
+          merged[id].quantity = (Number(merged[id].quantity) || 0) + Number(it.quantity);
+        }
+      }
+      cart.items = Object.values(merged);
+
       // Recalculate totals
       cart.totalAmount = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       cart.itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
