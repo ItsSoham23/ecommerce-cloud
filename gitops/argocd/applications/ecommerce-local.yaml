@@ -4,7 +4,7 @@ metadata:
   name: ecommerce-local
   namespace: argocd
 spec:
-  project: default
+  project: ecommerce-local
   source:
     repoURL: 'https://github.com/ItsSoham23/ecommerce-cloud.git'
     targetRevision: main

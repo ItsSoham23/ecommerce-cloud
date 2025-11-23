@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ecommerce-local
+  namespace: argocd
+spec:
+  description: GitOps project that manages the ecommerce-local overlay and monitoring stack
+  sourceRepos:
+    - https://github.com/ItsSoham23/ecommerce-cloud.git
+  destinations:
+    - namespace: ecommerce
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"

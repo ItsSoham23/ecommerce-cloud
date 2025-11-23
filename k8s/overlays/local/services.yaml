@@ -76,3 +76,18 @@ items:
           targetPort: 8085
           protocol: TCP
           name: http
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: frontend-service
+      labels:
+        app: frontend-web
+    spec:
+      type: ClusterIP
+      selector:
+        app: frontend-web
+      ports:
+        - port: 80
+          targetPort: 80
+          protocol: TCP
+          name: http
