@@ -8,11 +8,18 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 async function createUser(req, res, next) {
   try {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
+    if (!errors.isEmpty()) {
+      console.warn('Validation failed on createUser:', errors.array());
+      console.warn('Request body:', req.body);
+      return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
+    }
 
+    console.log('createUser request body:', req.body);
     const created = await userService.createUser(req.body);
+    console.log('User created:', created && created.email);
     return res.status(201).json(created);
   } catch (e) {
+    console.error('Error in createUser:', e && e.message ? e.message : e);
     next(e);
   }
 }
@@ -72,6 +79,7 @@ async function login(req, res, next) {
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+    console.log('login attempt for:', email);
     const user = await userService.authenticate(email, password);
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
     // Sign JWT
