@@ -1,0 +1,144 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flink-job-sa
+  namespace: ecommerce
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: flink-gcp-key
+  namespace: ecommerce
+type: Opaque
+stringData:
+  gcp-key.json: |
+    REPLACE_WITH_YOUR_GCP_SERVICE_ACCOUNT_JSON
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-job-script
+  namespace: ecommerce
+data:
+  run-flink-analytics.sh: |-
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [[ -z "${DATAPROC_CLUSTER_NAME:-}" ]]; then
+      echo "DATAPROC_CLUSTER_NAME is required"
+      exit 1
+    fi
+
+    if [[ -z "${GCP_PROJECT:-}" ]]; then
+      echo "GCP_PROJECT is required"
+      exit 1
+    fi
+
+    if [[ -z "${FLINK_JOB_URI:-}" ]]; then
+      echo "FLINK_JOB_URI is required"
+      exit 1
+    fi
+
+    if [[ -z "${KAFKA_BOOTSTRAP_SERVERS:-}" ]]; then
+      echo "KAFKA_BOOTSTRAP_SERVERS should point to MSK brokers"
+      exit 1
+    fi
+
+    JOB_ID="flink-analytics-$(date +%s)"
+    gcloud auth activate-service-account --key-file="${GOOGLE_APPLICATION_CREDENTIALS}"
+    gcloud config set project "${GCP_PROJECT}"
+    gcloud config set region "${GCP_REGION:-us-central1}"
+
+    args=(
+      "--kafka_bootstrap_servers" "${KAFKA_BOOTSTRAP_SERVERS}"
+      "--kafka_topic" "${KAFKA_TOPIC:-product-images.processed}"
+      "--results_bucket" "${RESULTS_BUCKET}"
+      "--firestore_collection" "${FIRESTORE_COLLECTION:-analytics_metrics}"
+      "--cloud_sql_private_ip" "${CLOUD_SQL_PRIVATE_IP}"
+      "--cloud_sql_user" "${CLOUD_SQL_USER}"
+      "--cloud_sql_password_secret" "${CLOUD_SQL_PASSWORD_SECRET}"
+      "--project_id" "${GCP_PROJECT}"
+      "--firestore_project" "${FIRESTORE_PROJECT:-${GCP_PROJECT}}"
+      "--window_minutes" "${WINDOW_MINUTES:-1}"
+      "--kafka_group" "${KAFKA_GROUP:-flink-analytics-group}"
+    )
+
+    echo "Submitting Dataproc Flink job ${JOB_ID}"
+    gcloud dataproc jobs submit flink \
+      --cluster="${DATAPROC_CLUSTER_NAME}" \
+      --region="${GCP_REGION:-us-central1}" \
+      --py-files="${FLINK_JOB_URI}" \
+      -- ${args[@]}
+
+    echo "Dataproc Flink job ${JOB_ID} submitted"
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: flink-analytics-trigger
+  namespace: ecommerce
+spec:
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: flink-job-sa
+          restartPolicy: OnFailure
+          containers:
+            - name: flink-analytics-trigger
+              image: google/cloud-sdk:slim
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: GOOGLE_APPLICATION_CREDENTIALS
+                  value: /var/secrets/gcp-key.json
+                - name: GCP_PROJECT
+                  value: ""
+                - name: GCP_REGION
+                  value: "us-central1"
+                - name: DATAPROC_CLUSTER_NAME
+                  value: ""
+                - name: FLINK_JOB_URI
+                  value: ""
+                - name: RESULTS_BUCKET
+                  value: ""
+                - name: FIRESTORE_COLLECTION
+                  value: "analytics_metrics"
+                - name: CLOUD_SQL_PRIVATE_IP
+                  value: ""
+                - name: CLOUD_SQL_USER
+                  value: ""
+                - name: CLOUD_SQL_PASSWORD_SECRET
+                  value: "analytics-db-password"
+                - name: FIRESTORE_PROJECT
+                  value: ""
+                - name: KAFKA_BOOTSTRAP_SERVERS
+                  value: ""
+                - name: KAFKA_TOPIC
+                  value: "product-images.processed"
+                - name: WINDOW_MINUTES
+                  value: "1"
+                - name: KAFKA_GROUP
+                  value: "flink-analytics-group"
+              command:
+                - "/bin/bash"
+                - "/scripts/run-flink-analytics.sh"
+              volumeMounts:
+                - name: flink-script
+                  mountPath: /scripts
+                - name: gcp-key
+                  mountPath: /var/secrets
+                  readOnly: true
+          volumes:
+            - name: flink-script
+              configMap:
+                name: flink-job-script
+            - name: gcp-key
+              secret:
+                secretName: flink-gcp-key

@@ -13,4 +13,9 @@ resources:
   - frontend-deployment.yaml
   - frontend-ingress.yaml
   - frontend-servicemonitor.yaml
+  - hpas.yaml
+  - flink-job.yaml
+  - load-testing.yaml
+  - grafana-dashboards.yaml
+  - logging-stack.yaml
 

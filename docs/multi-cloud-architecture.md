@@ -1,6 +1,9 @@
 # Multi-Cloud Architecture Overview
 
 ## Scope and Requirements
+# Multi-Cloud Architecture Overview
+
+## Scope and Requirements
 We are building an e-commerce platform split across two cloud providers:
 
 - **Provider A (AWS)** hosts the majority of the stateless microservices (user, product, cart, order, payment, notification) plus the managed Kafka cluster, storage tier, and serverless ingestion function.
@@ -43,12 +46,13 @@ Terraform under `terraform/gcp` makes Provider B ready for analytics workloads:
 - **Serverless function** will live on AWS (Lambda) or GCP (Cloud Function); the current Terraform scaffolding already wires an S3-triggered Lambda that could publish to Kafka or invoke other services. Alternatively, we can reuse it to push analytics metadata into Firestore or Cloud SQL.
 - **Storage**: AWS S3 handles raw uploads; GCP Firestore stores event analytics; Cloud SQL holds structured reporting data (and may act as the sink for Flink aggregates). Any new object storage (e.g., GCS bucket for Dataproc) is already provisioned in `terraform/gcp/dataproc.tf` and will be used for checkpoints/checkpoints.
 - **Observability**: Prometheus + Grafana run inside the Kubernetes cluster (GitOps tracked). Logs eventually aggregate via the Loki/EFK stack once we add those manifests. Grafana dashboards will include both AWS microservices metrics and the Flink job metrics (via Prometheus exporters or the Dataproc metrics endpoint exported through a ServiceMonitor). Kubernetes HPAs will be defined for key services (order, payment) and triggered by k6 load tests.
+- The `k8s/overlays/local` ArgoCD overlay now captures the Flink job trigger, logging stack (Prometheus/Loki/Grafana), Grafana dashboards, HPAs, and the scheduled k6 load test so observability is declaratively managed alongside the microservices.
 
 ## Outstanding Actions
 1. **Cross-cloud connectivity**: Wire MSK to GCP/Dataproc (VPC peering, IAM, or MSK multi-region endpoints) and ensure the Flink job uses TLS-authenticated Kafka consumers/producers against `product-images.processed`; populate `terraform/gcp/terraform.tfvars` (or the appropriate root module) so `kafka_bootstrap_servers` references `aws_msk_cluster.main.bootstrap_brokers_tls`.
 2. **Flink job implementation**: The PyFlink job is already staged in `analytics/flink_analytics_job.py` and submitted via Terraform; verify it can read from Kafka, honor checkpoints, and store metrics in Firestore/Cloud SQL/GCS once the networks between AWS and GCP are established.
 3. **Serverless event**: Complete the Lambda (or Cloud Function) to process S3 uploads and emit events to Kafka/Cloud SQL.
-4. **Observability + GitOps**: Extend ArgoCD overlays to include the Flink job, logging stack, and HPAs; ensure dashboards display RPS/error/latency and cluster health.
+4. **Observability + GitOps**: Extend ArgoCD overlays to include the Flink job trigger, logging stack, dashboards, and HPAs; now validate the Grafana/Loki stack and k6 job reconcile cleanly through ArgoCD.
 5. **Load testing**: Add k6 scripts to the repo, run them against exposed services, and document the scaling behavior (HPA metrics).# Multi-Cloud Architecture Overview
 
 ## Scope and Requirements

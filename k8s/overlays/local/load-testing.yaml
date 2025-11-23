@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: load-testing
+  namespace: ecommerce
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: k6-load-test
+  namespace: ecommerce
+spec:
+  schedule: "0 */4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          serviceAccountName: load-testing
+          restartPolicy: OnFailure
+          containers:
+            - name: k6
+              image: loadimpact/k6:0.45.0
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: BASE_URL
+                  value: "http://frontend-service.ecommerce.svc.cluster.local"
+              command:
+                - "/bin/sh"
+                - "-c"
+              args:
+                - |
+                  set -euo pipefail
+                  echo "Downloading latest load test script"
+                  curl -fsSL https://raw.githubusercontent.com/ItsSoham23/ecommerce-cloud/main/load-testing/k6/load-test.js -o /tmp/load-test.js
+                  echo "Running k6 load test against $BASE_URL"
+                  k6 run /tmp/load-test.js
