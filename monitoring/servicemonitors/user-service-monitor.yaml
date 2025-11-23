@@ -1,0 +1,73 @@
+# ServiceMonitor for User Service
+# This tells Prometheus to scrape metrics from the user service
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: user-service-monitor
+  namespace: default
+  labels:
+    app: user-service
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: user-service
+  endpoints:
+    - port: http
+      path: /actuator/prometheus  # For Spring Boot with actuator
+      interval: 30s
+---
+# ServiceMonitor for Product Service
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: product-service-monitor
+  namespace: default
+  labels:
+    app: product-service
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: product-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+---
+# ServiceMonitor for Cart Service
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cart-service-monitor
+  namespace: default
+  labels:
+    app: cart-service
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: cart-service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+---
+# ServiceMonitor for Frontend
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: frontend-monitor
+  namespace: default
+  labels:
+    app: frontend-web
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: frontend-web
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
