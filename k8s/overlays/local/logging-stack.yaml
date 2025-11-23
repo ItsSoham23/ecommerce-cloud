@@ -414,4 +414,3 @@ spec:
           hostPath:
             path: /var/log/pods
             type: DirectoryOrCreate
-*** End of File
