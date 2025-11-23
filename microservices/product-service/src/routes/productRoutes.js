@@ -17,5 +17,7 @@ router.post('/:id/upload-image', upload.single('image'), productController.uploa
 router.patch('/:id/stock', productController.updateStock);
 // Clear a reservation (used after payment succeeded/failed)
 router.patch('/:id/clear-reservation', productController.clearReservation);
+// Commit a confirmed sale: decrement persisted stock and clear reservation
+router.patch('/:id/commit', productController.commitSale);
 
 module.exports = router;

@@ -53,19 +53,22 @@ class CartService {
       
       const cart = await this.getCart(userId);
 
-      // Check if item exists in cart
-      const existingItemIndex = cart.items.findIndex(item => item.productId === productId);
+      // Normalize productId as string for consistent comparison/storage
+      const pid = product.id.toString();
+
+      // Check if item exists in cart (compare as strings)
+      const existingItemIndex = cart.items.findIndex(item => String(item.productId) === pid);
 
       if (existingItemIndex >= 0) {
-        // Update existing item quantity
-        cart.items[existingItemIndex].quantity += quantity;
+        // Update existing item quantity (ensure numeric math)
+        cart.items[existingItemIndex].quantity = (Number(cart.items[existingItemIndex].quantity) || 0) + Number(quantity);
       } else {
         // Add new item with REAL product data from Product Service
         cart.items.push({
-          productId: product.id.toString(),
+          productId: pid,
           productName: product.name,
           price: parseFloat(product.price),
-          quantity,
+          quantity: Number(quantity),
           addedAt: new Date().toISOString()
         });
       }
@@ -95,8 +98,9 @@ class CartService {
   async updateItemQuantity(userId, productId, quantity) {
     try {
       const cart = await this.getCart(userId);
-      
-      const itemIndex = cart.items.findIndex(item => item.productId === productId);
+      // Normalize productId comparison
+      const pid = String(productId);
+      const itemIndex = cart.items.findIndex(item => String(item.productId) === pid);
       
       if (itemIndex === -1) {
         throw new Error('Item not found in cart');
@@ -130,8 +134,9 @@ class CartService {
   async removeItem(userId, productId) {
     try {
       const cart = await this.getCart(userId);
-      
-      cart.items = cart.items.filter(item => item.productId !== productId);
+      // Normalize productId comparison
+      const pid = String(productId);
+      cart.items = cart.items.filter(item => String(item.productId) !== pid);
       cart.totalAmount = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       cart.itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
       cart.updatedAt = new Date().toISOString();

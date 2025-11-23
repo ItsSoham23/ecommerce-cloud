@@ -25,8 +25,8 @@ async function handlePaymentMessage({ topic, message }) {
             // Cart API: DELETE /api/cart/:userId/items/:productId
             await cartClient.delete(`/api/cart/${order.userId}/items/${it.productId}`);
             log('Removed product from cart', it.productId, 'for user', order.userId);
-            // Clear any reservation on the product (if set)
-            try { await inventoryService.clearReservation(it.productId, orderId); } catch (e) { error('clear reservation after payment succeeded', e); }
+            // Commit the sale: decrement persisted stock and clear the reservation
+            try { await inventoryService.commit(it.productId, it.quantity, orderId); } catch (e) { error('commit sale after payment succeeded', e); }
           } catch (e) {
             // Non-fatal — log and continue
             error('Failed to remove item from cart', it.productId, e.message || e);
@@ -39,7 +39,7 @@ async function handlePaymentMessage({ topic, message }) {
       const order = await OrderModel.getOrder(orderId);
       if (order && order.items) {
         for (const it of order.items) {
-          try { await inventoryService.release(it.productId, it.quantity); } catch (e) { error('release after payment failed', e); }
+          try { await inventoryService.clearReservation(it.productId, orderId); } catch (e) { error('clear reservation after payment failed', e); }
         }
       }
       await OrderModel.updateOrder(orderId, { status: 'FAILED', failureReason: reason || 'payment_failed' });

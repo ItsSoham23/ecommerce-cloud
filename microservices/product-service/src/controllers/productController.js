@@ -77,6 +77,16 @@ class ProductController {
     }
   }
 
+  async commitSale(req, res, next) {
+    try {
+      const { quantity, orderId } = req.body;
+      const product = await productService.commitSale(req.params.id, quantity, orderId);
+      res.status(200).json(product);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async clearReservation(req, res, next) {
     try {
       const { orderId } = req.body;

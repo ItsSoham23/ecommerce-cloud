@@ -52,4 +52,17 @@ async function release(productId, quantity) {
 	}
 }
 
-module.exports = { checkInventory, reserve, release, clearReservation };
+async function commit(productId, quantity, orderId) {
+	try {
+		const body = { quantity: Math.abs(quantity) };
+		if (orderId) body.orderId = orderId;
+		// Call /commit endpoint which will decrement persisted stock and clear reservation
+		const res = await client.patch(`/api/products/${productId}/commit`, body);
+		return { ok: true, product: res.data };
+	} catch (err) {
+		error('commit error', err.message || err);
+		return { ok: false, reason: 'Commit failed' };
+	}
+}
+
+module.exports = { checkInventory, reserve, release, clearReservation, commit };

@@ -13,6 +13,43 @@ class ProductService {
     }
   }
 
+  // Commit a sale: atomically decrement stock by `quantity` and clear any matching
+  // reservation for the provided orderId. This is called when payment succeeds.
+  async commitSale(productId, quantity, orderId) {
+    try {
+      const parsedId = parseInt(productId, 10);
+      if (Number.isNaN(parsedId)) {
+        const err = new Error('Invalid product id');
+        err.status = 400;
+        throw err;
+      }
+      const product = await Product.findByPk(parsedId);
+      if (!product) {
+        const err = new Error('Product not found');
+        err.status = 404;
+        throw err;
+      }
+
+      const prevStock = product.stock;
+      const required = Math.abs(quantity);
+      if (prevStock < required) throw new Error('Insufficient stock to commit sale');
+
+      const newStock = prevStock - required;
+      const updates = { stock: newStock };
+
+      // Clear reservation if it matches the provided orderId
+      if (product.reservedByOrderId && orderId && product.reservedByOrderId === orderId) {
+        updates.reservedByOrderId = null;
+        updates.reservedUntil = null;
+      }
+
+      await product.update(updates);
+      return product;
+    } catch (error) {
+      throw new Error(`Error committing sale: ${error && error.message ? error.message : String(error)}`);
+    }
+  }
+
   async getAllProducts(filters = {}) {
     try {
       const where = {};
@@ -202,20 +239,28 @@ class ProductService {
       }
 
       const prevStock = product.stock;
+
+      // Reservation intent: when quantity < 0 and an orderId is provided, treat this
+      // as a reservation/lock and DO NOT modify the persisted stock value. We only
+      // mark reservedByOrderId/reservedUntil so that callers see the product as unavailable.
+      const opts = arguments[2] || {};
+      if (quantity < 0 && opts.orderId) {
+        const required = Math.abs(quantity);
+        if (prevStock < required) throw new Error('Insufficient stock');
+        const lockTimeoutMs = parseInt(process.env.ORDER_PAYMENT_TIMEOUT_MS || '600000', 10);
+        const until = new Date(Date.now() + lockTimeoutMs);
+        await product.update({ reservedByOrderId: opts.orderId, reservedUntil: until });
+        return product;
+      }
+
+      // Normal stock adjustment (positive to add, negative to subtract) — used for
+      // committing a sale or admin stock changes. This adjusts the persisted stock.
       const newStock = prevStock + quantity;
       if (newStock < 0) {
         throw new Error('Insufficient stock');
       }
 
       const updates = { stock: newStock };
-
-      // If this is a reservation (quantity negative) and prevStock was 1, set reservation
-      if (quantity < 0 && prevStock === 1) {
-        const lockTimeoutMs = parseInt(process.env.ORDER_PAYMENT_TIMEOUT_MS || '600000', 10);
-        const until = new Date(Date.now() + lockTimeoutMs);
-        updates.reservedByOrderId = (arguments[2] && arguments[2].orderId) || null;
-        updates.reservedUntil = until;
-      }
 
       // If this is a release (quantity positive) and product had a reservation, clear it
       if (quantity > 0 && product.reservedByOrderId) {

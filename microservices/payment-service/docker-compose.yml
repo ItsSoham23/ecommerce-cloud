@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  payment-service:
+    build: .
+    image: payment-service:local
+    ports:
+      - "8085:8085"
+    environment:
+      NODE_ENV: development
+      PORT: 8085
+      KAFKA_BROKERS: host.docker.internal:9092
+      PAYMENT_SUCCESS_RATE: 0.85
+      PAYMENT_PROCESSING_MS: 800
+    restart: unless-stopped
