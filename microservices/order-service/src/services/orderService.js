@@ -32,7 +32,15 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 	for (const it of items) {
 		const check = await inventoryService.checkInventory(it.productId, it.quantity);
 		if (!check.ok) {
-			throw new Error(`Product ${it.productId} unavailable: ${check.reason}`);
+			// Map inventoryService reasons to HTTP-friendly errors
+			let message = check.reason || 'Product unavailable';
+			let status = 409;
+			if (message === 'Product not found') status = 404;
+			if (message === 'Insufficient stock') message = `Insufficient stock for product ${it.productId}`;
+			if (message === 'Product reserved') message = `Product ${it.productId} is reserved by another order`;
+			const err = new Error(message);
+			err.status = status;
+			throw err;
 		}
 	}
 
@@ -43,9 +51,14 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 		if (!r.ok) {
 			// Release any previous reservations
 			for (const prev of reservations) {
-				try { await inventoryService.release(prev.productId, prev.quantity); } catch (e) { error('release during rollback failed', e); }
+				try { await inventoryService.clearReservation(prev.productId, generatedOrderId); } catch (e) { error('clear reservation during rollback failed', e); }
 			}
-			throw new Error(`Failed to reserve product ${it.productId}`);
+			// Surface a clearer error message and status so controllers can return
+			// a helpful response to the API caller (e.g. Out of stock or Product reserved).
+			const err = new Error(r.reason || `Failed to reserve product ${it.productId}`);
+			if (r.status) err.status = r.status;
+			else err.status = 409;
+			throw err;
 		}
 		reservations.push({ productId: it.productId, quantity: it.quantity });
 	}

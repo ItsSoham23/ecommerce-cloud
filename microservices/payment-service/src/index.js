@@ -17,20 +17,27 @@ app.use(express.json());
 // Test payment endpoint to allow UI-driven simulation of payment results.
 app.post('/api/payments', async (req, res) => {
   try {
-    const { orderId, amount, userId, simulate } = req.body || {};
+    const { orderId, amount, userId } = req.body || {};
+    // Normalize simulate to avoid frontend/string mismatches (case, boolean, etc.)
+    let simulate = (req.body && req.body.simulate) || req.query && req.query.simulate;
+    if (typeof simulate === 'boolean') simulate = simulate ? 'succeeded' : 'failed';
+    if (typeof simulate === 'string') simulate = simulate.toLowerCase();
+
+    // Log the incoming request body for debugging incorrect simulate values
+    console.log('Payment API called with body:', JSON.stringify(req.body));
     // simulate: 'succeeded' or 'failed'
     const paymentId = `pay-${Date.now()}`;
-    if (simulate === 'failed') {
+    if (simulate === 'failed' || simulate === 'failure' || simulate === 'false') {
       // publish payment.failed
       const { produce } = require('./services/kafkaService');
       await produce('payment.failed', { orderId, reason: 'simulated_failure' });
-      return res.json({ success: false, paymentId: null, message: 'Simulated failure published' });
+      return res.json({ success: false, paymentId: null, message: 'Simulated failure published', receivedSimulate: simulate });
     }
 
     // default: succeed
     const { produce } = require('./services/kafkaService');
     await produce('payment.succeeded', { orderId, paymentId });
-    return res.json({ success: true, paymentId });
+    return res.json({ success: true, paymentId, receivedSimulate: simulate || 'succeeded' });
   } catch (e) {
     console.error('Payment API error', e && e.message ? e.message : e);
     return res.status(500).json({ success: false, message: 'Internal error' });

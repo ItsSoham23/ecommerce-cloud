@@ -10,6 +10,15 @@ async function handleRequest({ message }) {
   try {
     log('Processing payment request', message.orderId || '<no-order>');
 
+    // If PAYMENT_AUTO_PROCESS is explicitly set to 'false', skip automatic
+    // processing so developers can use the HTTP simulate endpoints to drive
+    // payment results deterministically during local testing.
+    const auto = (process.env.PAYMENT_AUTO_PROCESS || 'true').toLowerCase();
+    if (auto === 'false') {
+      log(`Auto-processing disabled (PAYMENT_AUTO_PROCESS=false); skipping processing for order ${message.orderId}`);
+      return;
+    }
+
     // simulate processing delay
     await new Promise(r => setTimeout(r, PROCESSING_MS));
 

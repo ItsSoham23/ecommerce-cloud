@@ -23,28 +23,36 @@ class ProductService {
         err.status = 400;
         throw err;
       }
-      const product = await Product.findByPk(parsedId);
-      if (!product) {
-        const err = new Error('Product not found');
-        err.status = 404;
-        throw err;
-      }
 
-      const prevStock = product.stock;
       const required = Math.abs(quantity);
-      if (prevStock < required) throw new Error('Insufficient stock to commit sale');
+      console.log(`productService.commitSale (atomic) called for product=${parsedId} quantity=${quantity} orderId=${orderId}`);
 
-      const newStock = prevStock - required;
-      const updates = { stock: newStock };
+      // Perform an atomic conditional update: only decrement `stock` and clear
+      // the reservation when the row currently has the matching `reservedByOrderId`
+      // and sufficient `stock`. This prevents races and accidental decrements
+      // when reservations were cleared or don't match.
+      const where = { id: parsedId, stock: { [Op.gte]: required } };
+      if (orderId) where.reservedByOrderId = orderId;
 
-      // Clear reservation if it matches the provided orderId
-      if (product.reservedByOrderId && orderId && product.reservedByOrderId === orderId) {
-        updates.reservedByOrderId = null;
-        updates.reservedUntil = null;
+      const updateObj = {
+        stock: Product.sequelize.literal(`stock - ${required}`),
+        reservedByOrderId: null,
+        reservedUntil: null
+      };
+
+      const [affectedCount, affectedRows] = await Product.update(updateObj, { where, returning: true });
+
+      if (!affectedCount || affectedCount === 0) {
+        // Nothing updated: either no matching reservation, insufficient stock,
+        // or reservation belonged to a different order. Return current row to
+        // allow callers to decide how to proceed.
+        const current = await Product.findByPk(parsedId);
+        console.log(`productService.commitSale: atomic update affected 0 rows for product=${parsedId} orderId=${orderId}`);
+        return current;
       }
 
-      await product.update(updates);
-      return product;
+      // Return the updated product (Postgres returns updated rows)
+      return affectedRows && affectedRows[0] ? (affectedRows[0].toJSON ? affectedRows[0].toJSON() : affectedRows[0]) : await Product.findByPk(parsedId);
     } catch (error) {
       throw new Error(`Error committing sale: ${error && error.message ? error.message : String(error)}`);
     }
@@ -240,24 +248,66 @@ class ProductService {
 
       const prevStock = product.stock;
 
-      // Reservation intent: when quantity < 0 and an orderId is provided, treat this
-      // as a reservation/lock and DO NOT modify the persisted stock value. We only
-      // mark reservedByOrderId/reservedUntil so that callers see the product as unavailable.
+      // Reservation intent: when quantity < 0 treat this as a reservation/lock
+      // and DO NOT modify the persisted stock value. Always mark
+      // `reservedByOrderId` (if provided) and `reservedUntil`. Persisted stock
+      // must only change via `commitSale` to avoid double-decrements.
       const opts = arguments[2] || {};
-      if (quantity < 0 && opts.orderId) {
+      if (quantity < 0) {
+        // Use an atomic DB-level conditional update to acquire the reservation
+        // so multiple concurrent requests cannot both reserve the same stock.
         const required = Math.abs(quantity);
-        if (prevStock < required) throw new Error('Insufficient stock');
         const lockTimeoutMs = parseInt(process.env.ORDER_PAYMENT_TIMEOUT_MS || '600000', 10);
         const until = new Date(Date.now() + lockTimeoutMs);
-        await product.update({ reservedByOrderId: opts.orderId, reservedUntil: until });
-        return product;
+
+        // Build the WHERE clause: enough stock AND not currently reserved (or expired)
+        const where = {
+          id: parsedId,
+          stock: { [Op.gte]: required },
+          [Op.or]: [
+            { reservedByOrderId: null },
+            { reservedUntil: { [Op.lt]: new Date() } }
+          ]
+        };
+
+        const updateObj = { reservedUntil: until };
+        if (opts.orderId) updateObj.reservedByOrderId = opts.orderId;
+
+        // `returning: true` works with Postgres and returns the updated row(s)
+        const [affectedCount, affectedRows] = await Product.update(updateObj, { where, returning: true });
+        if (!affectedCount || affectedCount === 0) {
+            // Could be insufficient stock or already reserved by someone else.
+            // Inspect current row to provide a more specific error message/status
+            const current = await Product.findByPk(parsedId);
+            if (current) {
+              const p = current.toJSON ? current.toJSON() : current;
+              const now = new Date();
+              if (p.reservedByOrderId && p.reservedUntil && new Date(p.reservedUntil) > now) {
+                const err = new Error('Product reserved');
+                err.status = 409;
+                throw err;
+              }
+              if (typeof p.stock !== 'undefined' && p.stock < required) {
+                const err = new Error('Insufficient stock');
+                err.status = 409;
+                throw err;
+              }
+            }
+            const err = new Error('Insufficient stock or already reserved');
+            err.status = 409;
+            throw err;
+        }
+        // Return the updated product row
+        return affectedRows && affectedRows[0] ? affectedRows[0].toJSON ? affectedRows[0].toJSON() : affectedRows[0] : product;
       }
 
       // Normal stock adjustment (positive to add, negative to subtract) — used for
       // committing a sale or admin stock changes. This adjusts the persisted stock.
       const newStock = prevStock + quantity;
       if (newStock < 0) {
-        throw new Error('Insufficient stock');
+        const err = new Error('Insufficient stock');
+        err.status = 409;
+        throw err;
       }
 
       const updates = { stock: newStock };
@@ -271,7 +321,15 @@ class ProductService {
       await product.update(updates);
       return product;
     } catch (error) {
-      throw new Error(`Error updating stock: ${error.message}`);
+      // Preserve status when present so HTTP handlers can use it
+      if (error && error.status) {
+        const err = new Error(error.message || String(error));
+        err.status = error.status;
+        throw err;
+      }
+      const err = new Error(`Error updating stock: ${error && error.message ? error.message : String(error)}`);
+      err.status = 500;
+      throw err;
     }
   }
 
