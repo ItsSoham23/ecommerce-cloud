@@ -70,13 +70,18 @@ export const AuthProvider = ({ children }) => {
     // Build a helpful error message from server response
     let serverMsg = error.response?.data?.message || error.response?.data?.error || null;
     const serverErrors = error.response?.data?.errors;
-    if (!serverMsg && Array.isArray(serverErrors) && serverErrors.length > 0) {
-      // join validation messages
-      serverMsg = serverErrors.map(e => e.msg || `${e.param || e.path}: ${e.msg || ''}`).join('; ');
+    const fieldErrors = {};
+    if (Array.isArray(serverErrors) && serverErrors.length > 0) {
+      // Collect field specific messages and also build a summary message
+      serverErrors.forEach(e => {
+        const key = e.param || e.path || e.field || 'general';
+        fieldErrors[key] = e.msg || e.message || JSON.stringify(e);
+      });
+      if (!serverMsg) serverMsg = serverErrors.map(e => e.msg || JSON.stringify(e)).join('; ');
     }
 
     const finalMsg = serverMsg || error.message || 'Registration failed';
-    return { success: false, error: finalMsg };
+    return { success: false, error: finalMsg, fieldErrors };
   }
 };
   const logout = () => {

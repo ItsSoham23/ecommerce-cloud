@@ -13,7 +13,7 @@ router.post(
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     body('firstName').optional().isString(),
     body('lastName').optional().isString(),
-    body('phone').optional().isString()
+    body('phone').optional().matches(/^\d{10}$/).withMessage('Phone must be 10 digits')
   ],
   controller.createUser
 );

@@ -13,6 +13,7 @@ function Register() {
     phone: ''
   });
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   
   const { register } = useAuth();
@@ -39,7 +40,15 @@ function Register() {
       setError('Password must be at least 6 characters');
       return;
     }
+
+    // Client-side validation: phone must be exactly 10 digits if provided
+    if (formData.phone && !/^\d{10}$/.test(formData.phone)) {
+      setFieldErrors({ phone: 'Phone must be 10 digits' });
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setFieldErrors({});
 
     try {
       const userData = {
@@ -55,6 +64,7 @@ function Register() {
         navigate('/products');
       } else {
         setError(result.error || 'Registration failed');
+        setFieldErrors(result.fieldErrors || {});
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -80,6 +90,7 @@ function Register() {
               onChange={handleChange}
               required
             />
+            {fieldErrors.email && <div className="error-message">{fieldErrors.email}</div>}
           </div>
 
           <div className="form-row">
@@ -93,6 +104,7 @@ function Register() {
                 onChange={handleChange}
                 required
               />
+              {fieldErrors.firstName && <div className="error-message">{fieldErrors.firstName}</div>}
             </div>
 
             <div className="form-group">
@@ -105,6 +117,7 @@ function Register() {
                 onChange={handleChange}
                 required
               />
+              {fieldErrors.lastName && <div className="error-message">{fieldErrors.lastName}</div>}
             </div>
           </div>
 
@@ -118,6 +131,7 @@ function Register() {
               onChange={handleChange}
               required
             />
+            {fieldErrors.phone && <div className="error-message">{fieldErrors.phone}</div>}
           </div>
 
           <div className="form-group">
@@ -130,6 +144,7 @@ function Register() {
               onChange={handleChange}
               required
             />
+            {fieldErrors.password && <div className="error-message">{fieldErrors.password}</div>}
           </div>
 
           <div className="form-group">
@@ -142,6 +157,7 @@ function Register() {
               onChange={handleChange}
               required
             />
+            {fieldErrors.confirmPassword && <div className="error-message">{fieldErrors.confirmPassword}</div>}
           </div>
 
           <button type="submit" className="btn-primary" disabled={loading}>
