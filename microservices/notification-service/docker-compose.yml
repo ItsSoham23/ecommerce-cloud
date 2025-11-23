@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  notification-service:
+    build: .
+    image: ecommerce/notification-service:local
+    environment:
+      - KAFKA_BROKERS=${KAFKA_BROKERS:-localhost:9092}
+      - KAFKA_CLIENT_ID=notification-service
+      - KAFKA_GROUP_ID=notification-service-group
+      - NOTIFICATION_TOPIC=payment.succeeded
+      - NOTIFICATION_WEBHOOK_URL=${NOTIFICATION_WEBHOOK_URL:-}
+    ports:
+      - "8090:8090"
+    restart: unless-stopped
