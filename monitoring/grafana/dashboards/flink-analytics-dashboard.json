@@ -6,13 +6,13 @@
         "datasource": "-- Grafana --",
         "enable": true,
         "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
+        "iconColor": "rgba(255, 0, 0, 1)",
         "name": "Annotations & Alerts",
         "type": "dashboard"
       }
     ]
   },
-  "description": "Request and error rates for the ecommerce microservices.",
+  "description": "Flink job throughput and data persistence metrics.",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
@@ -36,11 +36,11 @@
               },
               {
                 "color": "orange",
-                "value": 100
+                "value": 100000
               },
               {
                 "color": "red",
-                "value": 500
+                "value": 500000
               }
             ]
           }
@@ -65,13 +65,13 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total[5m])) by (app)",
+          "expr": "sum(rate(flink_jobmanager_job_taskmetrics_numRecordsIn[5m])) by (job_name)",
           "interval": "",
-          "legendFormat": "{{app}} RPS",
+          "legendFormat": "{{job_name}} in",
           "refId": "A"
         }
       ],
-      "title": "Request Rate (RPS)",
+      "title": "Flink Records In",
       "type": "timeseries"
     },
     {
@@ -90,8 +90,12 @@
                 "value": null
               },
               {
+                "color": "orange",
+                "value": 100000
+              },
+              {
                 "color": "red",
-                "value": 5
+                "value": 500000
               }
             ]
           }
@@ -116,13 +120,13 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (app)",
+          "expr": "sum(rate(flink_jobmanager_job_taskmetrics_numRecordsOut[5m])) by (job_name)",
           "interval": "",
-          "legendFormat": "{{app}} errors",
+          "legendFormat": "{{job_name}} out",
           "refId": "B"
         }
       ],
-      "title": "Server Error Rate",
+      "title": "Flink Records Out",
       "type": "timeseries"
     }
   ],
@@ -130,8 +134,8 @@
   "schemaVersion": 32,
   "style": "dark",
   "tags": [
-    "microservices",
-    "http"
+    "flink",
+    "analytics"
   ],
   "templating": {
     "list": []
@@ -159,7 +163,7 @@
     ]
   },
   "timezone": "",
-  "title": "Microservices Observability",
-  "uid": "microservices-observability",
+  "title": "Flink Analytics",
+  "uid": "flink-analytics",
   "version": 1
 }

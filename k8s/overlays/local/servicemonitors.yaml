@@ -35,3 +35,54 @@ items:
         - port: http
           path: /metrics
           interval: 30s
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      name: user-service
+      labels:
+        release: monitoring
+    spec:
+      selector:
+        matchLabels:
+          app: user-service
+      namespaceSelector:
+        matchNames:
+          - ecommerce
+      endpoints:
+        - port: http
+          path: /metrics
+          interval: 30s
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      name: product-service
+      labels:
+        release: monitoring
+    spec:
+      selector:
+        matchLabels:
+          app: product-service
+      namespaceSelector:
+        matchNames:
+          - ecommerce
+      endpoints:
+        - port: http
+          path: /metrics
+          interval: 30s
+  - apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      name: payment-service
+      labels:
+        release: monitoring
+    spec:
+      selector:
+        matchLabels:
+          app: payment-service
+      namespaceSelector:
+        matchNames:
+          - ecommerce
+      endpoints:
+        - port: http
+          path: /metrics
+          interval: 30s
