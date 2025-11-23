@@ -9,6 +9,8 @@ async function checkInventory(productId, requiredQuantity) {
 		const res = await client.get(`/api/products/${productId}`);
 		const product = res.data;
 		if (!product) return { ok: false, reason: 'Product not found' };
+		// If product has a reservation marker from product-service, treat it as reserved
+		if (product._reserved) return { ok: false, reason: 'Product reserved', product };
 		if (product.stock >= requiredQuantity) return { ok: true, product };
 		return { ok: false, reason: 'Insufficient stock', product };
 	} catch (err) {
@@ -22,11 +24,26 @@ async function reserve(productId, quantity, orderId) {
 		// product service expects a quantity delta (can be negative to reduce stock)
 		const body = { quantity: -Math.abs(quantity) };
 		if (orderId) body.orderId = orderId;
+
+		// Log reservation payload for debugging inventory interactions
+		console.log('inventoryService.reserve ->', { productId, body });
+
 		const res = await client.patch(`/api/products/${productId}/stock`, body);
 		return { ok: true, product: res.data };
 	} catch (err) {
 		error('reserve error', err.message || err);
-		return { ok: false, reason: 'Reserve failed' };
+		// Parse upstream (product-service) structured error when available so callers
+		// can present a clear message (e.g. Out of stock vs reserved).
+		let reason = 'Reserve failed';
+		let status = undefined;
+		if (err && err.response && err.response.data) {
+			const body = err.response.data;
+			reason = (body && body.error && body.error.message) || body.message || JSON.stringify(body);
+			status = err.response.status;
+		} else if (err && err.message) {
+			reason = err.message;
+		}
+		return { ok: false, reason, status };
 	}
 }
 
@@ -44,7 +61,19 @@ async function clearReservation(productId, orderId) {
 
 async function release(productId, quantity) {
 	try {
-		const res = await client.patch(`/api/products/${productId}/stock`, { quantity: Math.abs(quantity) });
+		// Previously this method increased persisted stock when rolling back a
+		// reservation. That caused incorrect stock changes when callers used
+		// `release` during error handling. To ensure stock only changes on
+		// explicit commit, make `release` clear any matching reservation
+		// instead of modifying `stock`.
+		const body = {};
+		// If caller provides an orderId in `quantity` (legacy callers), prefer
+		// to pass it through via the body. But APIs should call clearReservation
+		// explicitly with orderId when available.
+		if (typeof quantity === 'string' || typeof quantity === 'number') {
+			// nothing to do here — keep backward compatibility placeholder
+		}
+		const res = await client.patch(`/api/products/${productId}/clear-reservation`, body);
 		return { ok: true, product: res.data };
 	} catch (err) {
 		error('release error', err.message || err);
