@@ -33,7 +33,7 @@ variable "project_name" {
 variable "dataproc_master_machine_type" {
   description = "Machine type for Dataproc master node"
   type        = string
-  default     = "n1-standard-2"  # Smallest for Flink
+  default     = "n1-standard-2" # Smallest for Flink
 }
 
 variable "dataproc_worker_machine_type" {
@@ -46,4 +46,21 @@ variable "dataproc_worker_count" {
   description = "Number of Dataproc worker nodes"
   type        = number
   default     = 2
+}
+
+variable "kafka_bootstrap_servers" {
+  description = "MSK bootstrap servers that the Flink job connects to"
+  type        = string
+}
+
+variable "kafka_topic" {
+  description = "Kafka topic that receives processed product image metadata"
+  type        = string
+  default     = "product-images.processed"
+}
+
+variable "flink_result_bucket_suffix" {
+  description = "Suffix for the bucket where Flink writes intermediate results"
+  type        = string
+  default     = "flink-results"
 }

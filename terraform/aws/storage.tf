@@ -199,6 +199,8 @@ resource "aws_lambda_function" "image_processor" {
     variables = {
       PROCESSED_BUCKET = aws_s3_bucket.processed_images.id
       ENVIRONMENT      = var.environment
+      KAFKA_BOOTSTRAP_SERVERS = aws_msk_cluster.main.bootstrap_brokers_tls
+      KAFKA_TOPIC             = var.kafka_topic
     }
   }
 

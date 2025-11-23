@@ -60,3 +60,9 @@ variable "cluster_name" {
   type        = string
   default     = "ecommerce-eks-cluster"
 }
+
+variable "kafka_topic" {
+  description = "Kafka topic used by the Lambda processor"
+  type        = string
+  default     = "product-images.processed"
+}
