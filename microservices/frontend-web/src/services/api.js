@@ -105,6 +105,12 @@ export const getUserOrders = async (userId) => {
 const PAYMENT_SERVICE = process.env.REACT_APP_PAYMENT_SERVICE || 'http://localhost:8085';
 
 export const processPayment = async (paymentData) => {
-  const response = await axios.post(`${PAYMENT_SERVICE}/api/payments`, paymentData);
-  return response.data;
+  try {
+    const response = await axios.post(`${PAYMENT_SERVICE}/api/payments`, paymentData);
+    return response.data;
+  } catch (e) {
+    console.error('processPayment error', e && e.response ? e.response.data || e.response.statusText : e.message || e);
+    if (e.response && e.response.data) return e.response.data;
+    return { success: false, message: e.message || 'Payment request failed' };
+  }
 };

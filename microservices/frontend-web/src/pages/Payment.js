@@ -63,20 +63,23 @@ function Payment() {
         userId: order.userId,
         simulate: result // 'succeeded' or 'failed'
       };
+      console.debug('Submitting payment', body);
       const resp = await processPayment(body);
+      console.debug('Payment API response', resp);
       if (resp && resp.success) {
         alert('Payment processed: ' + (resp.paymentId || 'ok'));
         navigate('/orders');
       } else {
         const msg = resp && (resp.message || resp.error) ? (resp.message || resp.error) : 'Payment failed';
         console.error('Payment response indicates failure', resp);
-        alert('Payment failed: ' + msg);
+        // show clearer message for dev
+        alert('Payment failed: ' + msg + '\n(see console for full response)');
         navigate('/orders');
       }
     } catch (e) {
       console.error('Payment request failed', e);
       const errMsg = e?.response?.data?.message || e?.message || 'Payment request failed';
-      alert(`Payment request failed: ${errMsg}`);
+      alert(`Payment request failed: ${errMsg}\n(see console for details)`);
     }
   };
 

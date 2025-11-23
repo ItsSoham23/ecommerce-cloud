@@ -40,11 +40,14 @@ app.post('/api/payments', async (req, res) => {
 app.listen(PORT, async () => {
   log(`Payment Service running on port ${PORT}`);
   try {
-    // start the kafka consumer and wire processor
-    await startConsumer({ groupId: 'payment-service-group', topic: 'payment.requested', eachMessage: paymentProcessor.handleRequest });
-    log('Payment consumer started and listening for payment.requested');
+    // Try to start the Kafka consumer but don't crash the HTTP server if Kafka is unavailable.
+    startConsumer({ groupId: 'payment-service-group', topic: 'payment.requested', eachMessage: paymentProcessor.handleRequest })
+      .then(() => log('Payment consumer started and listening for payment.requested'))
+      .catch((e) => {
+        console.error('Failed to start payment consumer (will continue without consumer):', e && e.message ? e.message : e);
+      });
   } catch (e) {
-    console.error('Failed to start payment consumer', e);
-    process.exit(1);
+    // Should not reach here because startConsumer is handled above, but log defensively.
+    console.error('Unexpected error while attempting to start payment consumer', e);
   }
 });

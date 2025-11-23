@@ -1,0 +1,173 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20251123150629
+Username: ROMIT\jainr
+RunAs User: ROMIT\jainr
+Configuration Name: 
+Machine: ROMIT (Microsoft Windows NT 10.0.26100.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -noexit -command try { . "c:\Users\jainr\AppData\Local\Programs\Microsoft VS Code\resources\app\out\vs\workbench\contrib\terminal\common\scripts\shellIntegration.ps1" } catch {}
+Process ID: 20776
+PSVersion: 5.1.26100.7019
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.7019
+BuildVersion: 10.0.26100.7019
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is C:\Users\jainr\repos\ecommerce-cloud\tmp\reservation-release2.txt
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$prodId=6
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "Increment stock (release) for product $prodId by +1 to simulate payment failure releasing reserved stock";
+Increment stock (release) for product 6 by +1 to simulate payment failure releasing reserved stock
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>try { $r = Invoke-RestMethod -Uri "http://localhost:8082/api/products/$prodId/stock" -Method Patch -ContentType 'application/json' -Body (@{ quantity = 1 } | ConvertTo-Json) -ErrorAction Stop; $r | ConvertTo-Json -Depth 6 } catch { Write-Output "Patch stock failed: $($_.Exception.Message)"; Stop-Transcript; exit 1 }
+{
+    "id":  6,
+    "name":  "Limited Edition Widget",
+    "description":  "One-of-a-kind widget",
+    "price":  "49.99",
+    "category":  "Gadgets",
+    "stock":  1,
+    "imageUrl":  null,
+    "s3Key":  null,
+    "isActive":  true,
+    "reservedByOrderId":  null,
+    "reservedUntil":  null,
+    "createdAt":  "2025-11-22T22:10:19.380Z",
+    "updatedAt":  "2025-11-23T09:36:30.175Z"
+}
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Start-Sleep -Seconds 1
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "GET product after release:";
+GET product after release:
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>try { $p = Invoke-RestMethod -Uri "http://localhost:8082/api/products/$prodId" -Method Get -ErrorAction Stop; $p | ConvertTo-Json -Depth 6 } catch { Write-Output "GET failed: $($_.Exception.Message)"; Stop-Transcript; exit 1 }
+{
+    "id":  6,
+    "name":  "Limited Edition Widget",
+    "description":  "One-of-a-kind widget",
+    "price":  "49.99",
+    "category":  "Gadgets",
+    "stock":  1,
+    "imageUrl":  null,
+    "s3Key":  null,
+    "isActive":  true,
+    "reservedByOrderId":  null,
+    "reservedUntil":  null,
+    "createdAt":  "2025-11-22T22:10:19.380Z",
+    "updatedAt":  "2025-11-23T09:36:30.175Z"
+}
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS># Run concurrent checkout test
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "Starting concurrent checkout attempts (user-A and user-B)...";
+Starting concurrent checkout attempts (user-A and user-B)...
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$bodyA = @{ userId = 'user-A'; items = @(@{ productId = "$prodId"; quantity = 1 }) } | ConvertTo-Json -Depth 6
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$bodyB = @{ userId = 'user-B'; items = @(@{ productId = "$prodId"; quantity = 1 }) } | ConvertTo-Json -Depth 6
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$j1 = Start-Job -ScriptBlock { param($b) try { Invoke-RestMethod -Uri 'http://localhost:8084/api/orders' -Method Post -ContentType 'application/json' -Body $b -ErrorAction Stop } catch { Write-Output "JOB1 ERROR: $($_.Exception.Message)" } } -ArgumentList $bodyA
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Start-Sleep -Milliseconds 10
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$j2 = Start-Job -ScriptBlock { param($b) try { Invoke-RestMethod -Uri 'http://localhost:8084/api/orders' -Method Post -ContentType 'application/json' -Body $b -ErrorAction Stop } catch { Write-Output "JOB2 ERROR: $($_.Exception.Message)" } } -ArgumentList $bodyB
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Wait-Job -Job $j1,$j2 -Timeout 15000
+
+Id     Name            PSJobTypeName   State         HasMoreData     Location             Comm
+                                                                                          and
+--     ----            -------------   -----         -----------     --------             ----
+9      Job9            BackgroundJob   Completed     True            localhost             ...
+11     Job11           BackgroundJob   Completed     True            localhost             ...
+
+
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$r1 = Receive-Job -Job $j1 -ErrorAction SilentlyContinue
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$r2 = Receive-Job -Job $j2 -ErrorAction SilentlyContinue
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "--- Job Responses ---";
+--- Job Responses ---
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "User-A response:"; if ($r1) { $r1 | ConvertTo-Json -Depth 6 } else { Write-Output "(no response / error for user-A)" }
+User-A response:
+{
+    "orderId":  "ord-1763890593066",
+    "userId":  "user-A",
+    "items":  [
+                  {
+                      "productId":  "6",
+                      "quantity":  1,
+                      "price":  49.99,
+                      "productName":  "Limited Edition Widget"
+                  }
+              ],
+    "total":  49.99,
+    "status":  "AWAITING_PAYMENT",
+    "paymentId":  null,
+    "createdAt":  "2025-11-23T09:36:33.462Z",
+    "PSComputerName":  "localhost",
+    "RunspaceId":  "bb745032-484e-4563-91f2-94167097efc0",
+    "PSShowComputerName":  false
+}
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "User-B response:"; if ($r2) { $r2 | ConvertTo-Json -Depth 6 } else { Write-Output "(no response / error for user-B)" }
+User-B response:
+{
+    "value":  "JOB2 ERROR: The remote server returned an error: (500) Internal Server Error.",
+    "PSComputerName":  "localhost",
+    "RunspaceId":  "4e9caefd-beb2-4624-905d-64041b0be137",
+    "PSShowComputerName":  false
+}
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "GET product AFTER attempted checkouts:";
+GET product AFTER attempted checkouts:
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>try { $p2 = Invoke-RestMethod -Uri "http://localhost:8082/api/products/$prodId" -Method Get -ErrorAction Stop; $p2 | ConvertTo-Json -Depth 6 } catch { Write-Output "Failed to GET product: $($_.Exception.Message)" }
+{
+    "id":  6,
+    "name":  "Limited Edition Widget",
+    "description":  "One-of-a-kind widget",
+    "price":  "49.99",
+    "category":  "Gadgets",
+    "stock":  0,
+    "imageUrl":  null,
+    "s3Key":  null,
+    "isActive":  true,
+    "reservedByOrderId":  "ord-1763890593066",
+    "reservedUntil":  "2025-11-23T09:46:33.345Z",
+    "createdAt":  "2025-11-22T22:10:19.380Z",
+    "updatedAt":  "2025-11-23T09:36:33.346Z",
+    "_reserved":  true
+}
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS># pick winner
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$succeededOrder = $null
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>if ($r1 -and $r1.orderId) { $succeededOrder = $r1.orderId; Write-Output "Order created by user-A: $succeededOrder" }
+Order created by user-A: ord-1763890593066
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>if (-not $succeededOrder -and $r2 -and $r2.orderId) { $succeededOrder = $r2.orderId; Write-Output "Order created by user-B: $succeededOrder" }
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "Test run complete.";
+Test run complete.
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Stop-Transcript
+**********************
+Windows PowerShell transcript end
+End time: 20251123150636
+**********************

@@ -1,0 +1,159 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20251123150019
+Username: ROMIT\jainr
+RunAs User: ROMIT\jainr
+Configuration Name: 
+Machine: ROMIT (Microsoft Windows NT 10.0.26100.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -noexit -command try { . "c:\Users\jainr\AppData\Local\Programs\Microsoft VS Code\resources\app\out\vs\workbench\contrib\terminal\common\scripts\shellIntegration.ps1" } catch {}
+Process ID: 20776
+PSVersion: 5.1.26100.7019
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.7019
+BuildVersion: 10.0.26100.7019
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is C:\Users\jainr\repos\ecommerce-cloud\tmp\reservation-test2-output.txt
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$existing = 'ord-1763889095837'
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "Simulate payment FAILED for existing reserved order $existing";
+Simulate payment FAILED for existing reserved order ord-1763889095837
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>try { $payFail = Invoke-RestMethod -Uri 'http://localhost:8085/api/payments' -Method Post -ContentType 'application/json' -Body (@{ orderId = $existing; simulate = 'failed' } | ConvertTo-Json) -ErrorAction Stop; $payFail | ConvertTo-Json -Depth 6 } catch { Write-Output "Payment API call failed: $($_.Exception.Message)" }
+PS>TerminatingError(Invoke-RestMethod): "Unable to connect to the remote server"
+Payment API call failed: Unable to connect to the remote server
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Start-Sleep -Seconds 2
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$productId = 6
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "GET product AFTER releasing reservation:";
+GET product AFTER releasing reservation:
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>try { $p = Invoke-RestMethod -Uri "http://localhost:8082/api/products/$productId" -Method Get -ErrorAction Stop; $p | ConvertTo-Json -Depth 6 } catch { Write-Output "Failed to GET product: $($_.Exception.Message)" }
+{
+    "id":  6,
+    "name":  "Limited Edition Widget",
+    "description":  "One-of-a-kind widget",
+    "price":  "49.99",
+    "category":  "Gadgets",
+    "stock":  0,
+    "imageUrl":  null,
+    "s3Key":  null,
+    "isActive":  true,
+    "reservedByOrderId":  "ord-1763889095837",
+    "reservedUntil":  "2025-11-23T09:21:36.261Z",
+    "createdAt":  "2025-11-22T22:10:19.380Z",
+    "updatedAt":  "2025-11-23T09:11:36.270Z"
+}
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS># If product now has stock 1, run two near-simultaneous checkouts
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "Starting concurrent checkout attempts (user-A and user-B)...";
+Starting concurrent checkout attempts (user-A and user-B)...
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$bodyA = @{ userId = 'user-A'; items = @(@{ productId = "$productId"; quantity = 1 }) } | ConvertTo-Json -Depth 6
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$bodyB = @{ userId = 'user-B'; items = @(@{ productId = "$productId"; quantity = 1 }) } | ConvertTo-Json -Depth 6
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$j1 = Start-Job -ScriptBlock { param($b) try { Invoke-RestMethod -Uri 'http://localhost:8084/api/orders' -Method Post -ContentType 'application/json' -Body $b -ErrorAction Stop } catch { Write-Output "JOB1 ERROR: $($_.Exception.Message)" } } -ArgumentList $bodyA
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Start-Sleep -Milliseconds 30
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$j2 = Start-Job -ScriptBlock { param($b) try { Invoke-RestMethod -Uri 'http://localhost:8084/api/orders' -Method Post -ContentType 'application/json' -Body $b -ErrorAction Stop } catch { Write-Output "JOB2 ERROR: $($_.Exception.Message)" } } -ArgumentList $bodyB
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Wait-Job -Job $j1,$j2 -Timeout 15000
+
+Id     Name            PSJobTypeName   State         HasMoreData     Location             Comm
+                                                                                          and
+--     ----            -------------   -----         -----------     --------             ----
+1      Job1            BackgroundJob   Completed     True            localhost             ...
+3      Job3            BackgroundJob   Completed     True            localhost             ...
+
+
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$r1 = Receive-Job -Job $j1 -ErrorAction SilentlyContinue
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$r2 = Receive-Job -Job $j2 -ErrorAction SilentlyContinue
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "--- Job Responses ---";
+--- Job Responses ---
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "User-A response:"; if ($r1) { $r1 | ConvertTo-Json -Depth 6 } else { Write-Output "(no response / error for user-A)" }
+User-A response:
+{
+    "value":  "JOB1 ERROR: The remote server returned an error: (500) Internal Server Error.",
+    "PSComputerName":  "localhost",
+    "RunspaceId":  "3b6b3a51-27f1-4761-81be-2d37080ba15b",
+    "PSShowComputerName":  false
+}
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "User-B response:"; if ($r2) { $r2 | ConvertTo-Json -Depth 6 } else { Write-Output "(no response / error for user-B)" }
+User-B response:
+{
+    "value":  "JOB2 ERROR: The remote server returned an error: (500) Internal Server Error.",
+    "PSComputerName":  "localhost",
+    "RunspaceId":  "08cca886-9739-401d-9dd7-61f6c3bf25a3",
+    "PSShowComputerName":  false
+}
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "GET product AFTER attempted checkouts:";
+GET product AFTER attempted checkouts:
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>try { $p2 = Invoke-RestMethod -Uri "http://localhost:8082/api/products/$productId" -Method Get -ErrorAction Stop; $p2 | ConvertTo-Json -Depth 6 } catch { Write-Output "Failed to GET product: $($_.Exception.Message)" }
+{
+    "id":  6,
+    "name":  "Limited Edition Widget",
+    "description":  "One-of-a-kind widget",
+    "price":  "49.99",
+    "category":  "Gadgets",
+    "stock":  0,
+    "imageUrl":  null,
+    "s3Key":  null,
+    "isActive":  true,
+    "reservedByOrderId":  "ord-1763889095837",
+    "reservedUntil":  "2025-11-23T09:21:36.261Z",
+    "createdAt":  "2025-11-22T22:10:19.380Z",
+    "updatedAt":  "2025-11-23T09:11:36.270Z"
+}
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS># Determine which order created
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>$succeededOrder = $null
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>if ($r1 -and $r1.orderId) { $succeededOrder = $r1.orderId; Write-Output "Order created by user-A: $succeededOrder" }
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>if (-not $succeededOrder -and $r2 -and $r2.orderId) { $succeededOrder = $r2.orderId; Write-Output "Order created by user-B: $succeededOrder" }
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "If one succeeded, simulate payment SUCCESS to confirm consumer clears reservation on success (and we expect status update).";
+If one succeeded, simulate payment SUCCESS to confirm consumer clears reservation on success (and we expect status update).
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>if ($succeededOrder) {
+  try { $payOk = Invoke-RestMethod -Uri 'http://localhost:8085/api/payments' -Method Post -ContentType 'application/json' -Body (@{ orderId = $succeededOrder; simulate = 'succeeded' } | ConvertTo-Json) -ErrorAction Stop; $payOk | ConvertTo-Json -Depth 6 } catch { Write-Output "Payment success API call failed: $($_.Exception.Message)" }
+  Start-Sleep -Seconds 2
+  Write-Output "GET product AFTER payment success:";
+  try { $p4 = Invoke-RestMethod -Uri "http://localhost:8082/api/products/$productId" -Method Get -ErrorAction Stop; $p4 | ConvertTo-Json -Depth 6 } catch { Write-Output "Failed to GET product after success: $($_.Exception.Message)" }
+}
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+]633;D]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Write-Output "Second test finished.";
+Second test finished.
+]633;D;0]633;A]633;P;Cwd=C:\x5cUsers\x5cjainr\x5crepos\x5cecommerce-cloudPS C:\Users\jainr\repos\ecommerce-cloud> ]633;B
+PS>Stop-Transcript
+**********************
+Windows PowerShell transcript end
+End time: 20251123150029
+**********************
