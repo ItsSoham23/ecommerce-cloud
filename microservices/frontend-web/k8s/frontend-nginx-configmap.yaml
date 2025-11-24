@@ -19,9 +19,6 @@ data:
       gzip on;
       gzip_types text/plain application/json application/javascript text/css application/xml;
 
-      log_format request_with_body '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" request_body:$request_body';
-      access_log /dev/stdout request_with_body;
-
       upstream user_service {
         server user-service:8080;
       }
@@ -40,8 +37,7 @@ data:
 
       # Enable response body substitution to rewrite hardcoded localhost URLs
       sub_filter_once off;
-      # Only rewrite in HTML and JS/CSS responses — avoid JSON to prevent mangling API responses
-      sub_filter_types text/html application/javascript text/css; 
+      sub_filter_types text/html application/javascript text/css;
       sub_filter 'http://localhost:8081' '';
       sub_filter 'http://localhost:8082' '';
       sub_filter 'http://localhost:8083' '';
@@ -53,14 +49,6 @@ data:
         server_name _;
         root /usr/share/nginx/html;
 
-        # Increase proxy timeouts and adjust proxy behavior to avoid client 499 / empty replies
-        proxy_http_version 1.1;
-        # Leave request buffering enabled to ensure upstream receives full body intact
-        proxy_connect_timeout 10s;
-        proxy_send_timeout 120s;
-        proxy_read_timeout 120s;
-        proxy_buffering off;
-
         location / {
           try_files $uri /index.html;
         }
@@ -70,25 +58,12 @@ data:
           return 200 '{"status":"UP","service":"frontend-web"}';
         }
 
-        location /api/users {
-          proxy_pass http://user_service;
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-
         location /api/users/ {
           proxy_pass http://user_service;
           proxy_set_header Host $host;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-
-        location /api/products {
-          proxy_pass http://product_service;
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_request_buffering off;
         }
 
         location /api/products/ {
@@ -96,13 +71,7 @@ data:
           proxy_set_header Host $host;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-
-        location /api/cart {
-          proxy_pass http://cart_service;
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_request_buffering off;
         }
 
         location /api/cart/ {
@@ -110,13 +79,7 @@ data:
           proxy_set_header Host $host;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-
-        location /api/orders {
-          proxy_pass http://order_service;
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_request_buffering off;
         }
 
         location /api/orders/ {
@@ -124,13 +87,7 @@ data:
           proxy_set_header Host $host;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-
-        location /api/payments {
-          proxy_pass http://payment_service;
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_request_buffering off;
         }
 
         location /api/payments/ {
@@ -138,6 +95,7 @@ data:
           proxy_set_header Host $host;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_request_buffering off;
         }
 
         location /metrics {
