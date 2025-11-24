@@ -44,7 +44,8 @@ resource "google_storage_bucket" "dataproc_init" {
 resource "google_storage_bucket_object" "flink_init_dependencies" {
   name         = "install-flink-deps.sh"
   bucket       = google_storage_bucket.dataproc_init.name
-  source       = "${path.module}/../analytics/install-flink-deps.sh"
+  # path.module is terraform/gcp, analytics lives at ecommerce-cloud/analytics -> go up two levels
+  source       = "${path.module}/../../analytics/install-flink-deps.sh"
   content_type = "text/x-shellscript"
 }
 
@@ -53,7 +54,8 @@ resource "google_storage_bucket_object" "flink_init_dependencies" {
 # ============================================================================
 
 resource "google_service_account" "dataproc" {
-  account_id   = "${var.project_name}-dataproc-sa"
+  # Ensure account_id meets GCP's regex/length requirements by truncating project_name if needed
+  account_id   = "${substr(var.project_name, 0, 17)}-dataproc-sa"
   display_name = "Dataproc Flink Service Account"
 }
 
@@ -123,20 +125,13 @@ resource "google_dataproc_cluster" "flink_cluster" {
       image_version = "2.1-debian11" # Includes Flink
 
       optional_components = ["FLINK"]
-
-      properties = {
-        "flink:taskmanager.numberOfTaskSlots" = "4"
-        "flink:state.backend"                 = "rocksdb"
-        "flink:state.checkpoints.dir"         = "gs://${google_storage_bucket.flink_checkpoints.name}/checkpoints"
-        "flink:state.savepoints.dir"          = "gs://${google_storage_bucket.flink_checkpoints.name}/savepoints"
-      }
     }
 
     # GCE configuration
     gce_cluster_config {
-      zone           = var.gcp_zone
-      network_uri    = google_compute_network.vpc.id
-      subnetwork_uri = google_compute_subnetwork.private.id
+      zone      = var.gcp_zone
+      # Use only the subnetwork (network is derived from subnetwork)
+      subnetwork = google_compute_subnetwork.private.id
 
       service_account = google_service_account.dataproc.email
       service_account_scopes = [
@@ -147,12 +142,11 @@ resource "google_dataproc_cluster" "flink_cluster" {
         "enable-oslogin" = "true"
       }
 
-      # Network tags for firewall rules
       tags = ["dataproc", "flink"]
     }
 
     initialization_action {
-      executable_file = "gs://${google_storage_bucket.dataproc_init.name}/${google_storage_bucket_object.flink_init_dependencies.name}"
+      script = "gs://${google_storage_bucket.dataproc_init.name}/${google_storage_bucket_object.flink_init_dependencies.name}"
     }
   }
 
@@ -180,40 +174,14 @@ resource "google_storage_bucket" "analytics_results" {
 resource "google_storage_bucket_object" "flink_job_script" {
   name         = "flink_analytics_job.py"
   bucket       = google_storage_bucket.dataproc_init.name
-  source       = "${path.module}/../analytics/flink_analytics_job.py"
+  source       = "${path.module}/../../analytics/flink_analytics_job.py"
   content_type = "text/x-python"
 }
 
-resource "google_dataproc_job" "flink_analytics" {
-  region = var.gcp_region
-
-  flink_job {
-    main_python_file_uri = "gs://${google_storage_bucket.dataproc_init.name}/${google_storage_bucket_object.flink_job_script.name}"
-    args = [
-      "--kafka_bootstrap_servers", var.kafka_bootstrap_servers,
-      "--kafka_topic", var.kafka_topic,
-      "--results_bucket", google_storage_bucket.analytics_results.name,
-      "--firestore_collection", "analytics_metrics",
-      "--cloud_sql_private_ip", google_sql_database_instance.analytics.private_ip_address,
-      "--cloud_sql_user", google_sql_user.analytics_user.name,
-      "--cloud_sql_password_secret", google_secret_manager_secret.analytics_db_password.secret_id,
-      "--project_id", var.gcp_project_id,
-      "--firestore_project", var.gcp_project_id
-    ]
-  }
-
-  reference {
-    job_id = "${local.name_prefix}-product-image-analytics"
-  }
-
-  labels = local.common_labels
-
-  depends_on = [
-    google_dataproc_cluster.flink_cluster,
-    google_storage_bucket_object.flink_job_script,
-    google_storage_bucket.analytics_results
-  ]
-}
+/* Dataproc job resource removed.
+   Job submission is performed externally using the `submit_flink_job_command` output
+   (gcloud dataproc jobs submit flink ...) so the provider schema mismatches are avoided.
+*/
 
 # ============================================================================
 # Outputs
@@ -249,7 +217,4 @@ output "flink_job_script_uri" {
   value       = "gs://${google_storage_bucket.dataproc_init.name}/${google_storage_bucket_object.flink_job_script.name}"
 }
 
-output "flink_analytics_job_id" {
-  description = "Identifier for the submitted Flink analytics job"
-  value       = google_dataproc_job.flink_analytics.reference[0].job_id
-}
+/* Removed `flink_analytics_job_id` output because the job is not auto-submitted by Terraform. */

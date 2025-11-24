@@ -42,6 +42,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.5"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
   }
 
   # We'll add backend configuration later after creating the S3 bucket

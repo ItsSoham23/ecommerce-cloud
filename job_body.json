@@ -1,0 +1,34 @@
+{
+    "job":  {
+                "placement":  {
+                                  "clusterName":  "ecommerce-cloud-dev-dev-flink-cluster"
+                              },
+                "flinkJob":  {
+                                 "mainPythonFileUri":  "gs://ecommerce-cloud-dev-dev-dataproc-init-ecommerce-cloud-dev/flink_analytics_job.py",
+                                 "args":  [
+                                              "--kafka_bootstrap_servers",
+                                              "b-1.ecommercedevkafka.8t3i98.c11.kafka.us-east-1.amazonaws.com:9094,b-2.ecommercedevkafka.8t3i98.c11.kafka.us-east-1.amazonaws.com:9094,b-3.ecommercedevkafka.8t3i98.c11.kafka.us-east-1.amazonaws.com:9094",
+                                              "--kafka_topic",
+                                              "product-images.processed",
+                                              "--results_bucket",
+                                              "ecommerce-cloud-dev-dev-flink-results-ecommerce-cloud-dev",
+                                              "--firestore_collection",
+                                              "analytics_metrics",
+                                              "--cloud_sql_private_ip",
+                                              "10.67.0.3",
+                                              "--cloud_sql_user",
+                                              "analytics_app",
+                                              "--cloud_sql_password",
+                                              "aBx@{pa=#n%_BHHk",
+                                              "--project_id",
+                                              "ecommerce-cloud-dev",
+                                              "--firestore_project",
+                                              "ecommerce-cloud-dev",
+                                              "--window_minutes",
+                                              "1",
+                                              "--kafka_group",
+                                              "flink-analytics-group"
+                                          ]
+                             }
+            }
+}

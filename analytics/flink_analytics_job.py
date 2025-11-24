@@ -9,13 +9,15 @@ from datetime import datetime, timezone
 from google.cloud import firestore, secretmanager, storage
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from pyflink.common import Time
+
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors import FlinkKafkaConsumer
-from pyflink.datastream.functions import ProcessWindowFunction, RuntimeContext
-from pyflink.datastream.window import TumblingEventTimeWindows
+from pyflink.datastream.functions import ProcessWindowFunction, RuntimeContext, KeyedProcessFunction
+from pyflink.datastream.state import MapStateDescriptor
+from pyflink.common.typeinfo import Types
+import time
 
 
 logging.basicConfig(level=logging.INFO)
@@ -146,6 +148,116 @@ class AnalyticsWindowFunction(ProcessWindowFunction):
         self._persist(metrics, key)
 
 
+class WindowAccumulator(KeyedProcessFunction):
+    def __init__(self, *, results_bucket: str, firestore_collection: str, firestore_project: str, cloud_sql_config: dict, project_id: str, secret_id: str, window_minutes: int = 1):
+        self.results_bucket = results_bucket
+        self.firestore_collection = firestore_collection
+        self.firestore_project = firestore_project
+        self.cloud_sql_config = cloud_sql_config
+        self.project_id = project_id
+        self.secret_id = secret_id
+        self.storage_client = None
+        self.firestore_client = None
+        self.cloud_sql_conn = None
+        self._window_ms = int(window_minutes) * 60_000
+        self._map_state_desc = MapStateDescriptor("windows", Types.LONG(), Types.PICKLED_BYTE_ARRAY())
+
+    def open(self, runtime_context: RuntimeContext):
+        self.storage_client = storage.Client()
+        self.firestore_client = firestore.Client(project=self.firestore_project)
+        password = fetch_secret(self.project_id, self.secret_id)
+        self.cloud_sql_conn = psycopg2.connect(
+            dbname=self.cloud_sql_config["database"],
+            user=self.cloud_sql_config["user"],
+            password=password,
+            host=self.cloud_sql_config["host"],
+            port=self.cloud_sql_config.get("port", 5432),
+            cursor_factory=RealDictCursor,
+        )
+        self.cloud_sql_conn.autocommit = True
+        with self.cloud_sql_conn.cursor() as cur:
+            cur.execute(
+                """CREATE TABLE IF NOT EXISTS analytics_metrics (
+                    window_start TIMESTAMPTZ NOT NULL,
+                    size_label TEXT NOT NULL,
+                    event_count BIGINT,
+                    total_bytes BIGINT,
+                    latest_event TIMESTAMPTZ,
+                    summary_json JSONB,
+                    PRIMARY KEY (window_start, size_label)
+                )"""
+            )
+        self._windows = runtime_context.get_map_state(self._map_state_desc)
+
+    def _persist(self, metrics: dict, size_label: str):
+        window_start = datetime.fromisoformat(metrics["window_start"])
+        json_blob = json.dumps(metrics)
+        with self.cloud_sql_conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO analytics_metrics (window_start, size_label, event_count, total_bytes, latest_event, summary_json)
+                   VALUES (%s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (window_start, size_label) DO UPDATE
+                     SET event_count = EXCLUDED.event_count,
+                         total_bytes = EXCLUDED.total_bytes,
+                         latest_event = EXCLUDED.latest_event,
+                         summary_json = EXCLUDED.summary_json""",
+                (
+                    window_start,
+                    size_label,
+                    metrics["event_count"],
+                    metrics["total_bytes"],
+                    metrics["latest_event"],
+                    json_blob,
+                ),
+            )
+        document_id = f"{metrics['window_start']}_{size_label}"
+        self.firestore_client.collection(self.firestore_collection).document(document_id).set(metrics)
+        blob = self.storage_client.bucket(self.results_bucket).blob(f"analytics/{metrics['window_start']}_{size_label}.json")
+        blob.upload_from_string(json_blob, content_type="application/json")
+
+    def process_element(self, value, ctx):
+        # determine window end aligned to window size
+        ts = int(value.get("timestamp_millis", int(time.time() * 1000)))
+        window_end = ts - (ts % self._window_ms) + self._window_ms
+        existing = self._windows.get(window_end)
+        if existing is None:
+            # start new window list
+            self._windows.put(window_end, [value])
+            ctx.timer_service().register_event_time_timer(window_end)
+        else:
+            existing.append(value)
+            self._windows.put(window_end, existing)
+
+    def on_timer(self, timestamp, ctx):
+        events = self._windows.get(timestamp)
+        if not events:
+            return
+        # compute metrics
+        total_bytes = sum(event.get("size_bytes", 0) for event in events)
+        latest_event = max(event["timestamp_parsed"] for event in events)
+        window_start = datetime.fromtimestamp((timestamp - self._window_ms) / 1000, timezone.utc)
+        key = None
+        try:
+            # context may provide current key
+            key = ctx.get_current_key()
+        except Exception:
+            key = "default"
+        metrics = {
+            "window_start": window_start.isoformat(),
+            "size_label": key,
+            "event_count": len(events),
+            "total_bytes": total_bytes,
+            "latest_event": latest_event.isoformat() if isinstance(latest_event, datetime) else datetime.fromtimestamp(latest_event / 1000, timezone.utc).isoformat(),
+            "processed_at": datetime.now(timezone.utc).isoformat(),
+        }
+        # persist and emit
+        self._persist(metrics, key)
+        # yield the serialized metrics to downstream
+        yield json.dumps(metrics)
+        # cleanup state
+        self._windows.remove(timestamp)
+
+
 def build_stream(args):
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(2)
@@ -173,13 +285,26 @@ def build_stream(args):
     watermark_strategy = WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
         lambda event, timestamp: event["timestamp_millis"]
     )
+    # Some pyflink versions expect a timestamp assigner object with
+    # an `extract_timestamp` method instead of a plain callable. Provide
+    # a small adapter for compatibility.
+    class _TimestampAssigner:
+        def extract_timestamp(self, element, record_timestamp):
+            return int(element.get("timestamp_millis", 0))
+
+    try:
+        # If the WatermarkStrategy accepts an object, swap in the adapter
+        watermark_strategy = watermark_strategy.with_timestamp_assigner(_TimestampAssigner())
+    except Exception:
+        # If the callable form is already correct for this pyflink version,
+        # the original callable will remain in use.
+        pass
     windowed = (
         stream
         .assign_timestamps_and_watermarks(watermark_strategy)
         .key_by(lambda event: event.get("size_label", "default"))
-        .window(TumblingEventTimeWindows.of(Time.minutes(args.window_minutes)))
         .process(
-            AnalyticsWindowFunction(
+            WindowAccumulator(
                 results_bucket=args.results_bucket,
                 firestore_collection=args.firestore_collection,
                 firestore_project=args.firestore_project,
@@ -190,6 +315,7 @@ def build_stream(args):
                 },
                 project_id=args.project_id,
                 secret_id=args.cloud_sql_password_secret,
+                window_minutes=args.window_minutes,
             )
         )
     )
