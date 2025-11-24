@@ -28,27 +28,44 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 		// generate orderId early so reservations can reference it
 		const generatedOrderId = `ord-${Date.now()}`;
 
-		// 1) Check inventory for each item
-	for (const it of items) {
-		const check = await inventoryService.checkInventory(it.productId, it.quantity);
-		if (!check.ok) {
-			// Map inventoryService reasons to HTTP-friendly errors
-			let message = check.reason || 'Product unavailable';
-			let status = 409;
-			if (message === 'Product not found') status = 404;
-			if (message === 'Insufficient stock') message = `Insufficient stock for product ${it.productId}`;
-			if (message === 'Product reserved') message = `Product ${it.productId} is reserved by another order`;
-			const err = new Error(message);
-			err.status = status;
-			throw err;
+		// 1) Check inventory for each item and cache results so we can decide
+		// whether to create DB reservations below.
+		const inventoryChecks = {};
+		for (const it of items) {
+			const check = await inventoryService.checkInventory(it.productId, it.quantity);
+			inventoryChecks[it.productId] = check;
+			if (!check.ok) {
+				// Map inventoryService reasons to HTTP-friendly errors
+				let message = check.reason || 'Product unavailable';
+				let status = 409;
+				if (message === 'Product not found') status = 404;
+				if (message === 'Insufficient stock') message = `Insufficient stock for product ${it.productId}`;
+				if (message === 'Product reserved') message = `Product ${it.productId} is reserved by another order`;
+				const err = new Error(message);
+				err.status = status;
+				throw err;
+			}
 		}
-	}
 
 		// 2) Reserve/block stock for each item (pass orderId so product can mark reservation)
 	const reservations = [];
 	for (const it of items) {
-			const r = await inventoryService.reserve(it.productId, it.quantity, generatedOrderId);
-		if (!r.ok) {
+			// Decide whether to create a DB reservation. Only reserve when this
+			// order would consume the remaining stock — i.e. available - required <= 0.
+			const check = inventoryChecks[it.productId];
+			let shouldReserve = true;
+			if (check && check.product && typeof check.product.stock !== 'undefined') {
+				const available = parseInt(check.product.stock, 10);
+				const required = parseInt(it.quantity, 10);
+				if (!Number.isNaN(available) && !Number.isNaN(required)) {
+					shouldReserve = (available - required) <= 0;
+				}
+			}
+			let r = { ok: true, product: null };
+			if (shouldReserve) {
+				r = await inventoryService.reserve(it.productId, it.quantity, generatedOrderId);
+			}
+			if (!r.ok) {
 			// Release any previous reservations
 			for (const prev of reservations) {
 				try { await inventoryService.clearReservation(prev.productId, generatedOrderId); } catch (e) { error('clear reservation during rollback failed', e); }
