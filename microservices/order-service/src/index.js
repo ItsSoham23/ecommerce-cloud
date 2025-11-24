@@ -28,12 +28,6 @@ app.get('/metrics', async (req, res) => {
 
 app.use('/api/orders', orderRoutes);
 
-// Error handler
-app.use((err, req, res, next) => {
-	console.error(err.stack || err);
-	res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
-});
-
 // Internal endpoint to receive payment events when Kafka is unavailable.
 app.post('/api/internal/payment-event', async (req, res) => {
 	try {
@@ -47,6 +41,12 @@ app.post('/api/internal/payment-event', async (req, res) => {
 		console.error('internal payment-event error', e && e.message ? e.message : e);
 		return res.status(500).json({ error: 'internal handler error' });
 	}
+});
+
+// Error handler (MUST be last)
+app.use((err, req, res, next) => {
+	console.error(err.stack || err);
+	res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
 });
 
 const startServer = async () => {
