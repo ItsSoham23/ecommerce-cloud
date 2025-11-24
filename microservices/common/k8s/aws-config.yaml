@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-config
+  namespace: ecommerce
+data:
+  aws_region: "ap-south-1"
+  aws_endpoint: "http://localstack:4566"
+  LOCALSTACK_ENDPOINT: "http://localstack:4566"
+  USE_LOCALSTACK: "true"

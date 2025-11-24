@@ -1,31 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: order-service
+  name: payment-service
   namespace: ecommerce
   labels:
-    app: order-service
+    app: payment-service
     tier: backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: order-service
+      app: payment-service
   template:
     metadata:
       labels:
-        app: order-service
+        app: payment-service
         tier: backend
     spec:
       containers:
-      - name: order-service
-        image: 297473910235.dkr.ecr.ap-south-1.amazonaws.com/order-service:latest
+      - name: payment-service
+        image: 297473910235.dkr.ecr.ap-south-1.amazonaws.com/payment-service:latest
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 8084
+        - containerPort: 8085
         env:
         - name: PORT
-          value: "8084"
+          value: "8085"
         - name: AWS_REGION
           valueFrom:
             configMapKeyRef:
@@ -46,10 +46,3 @@ spec:
             secretKeyRef:
               name: aws-creds
               key: AWS_SECRET_ACCESS_KEY
-        - name: USE_LOCALSTACK
-          value: "true"
-        - name: LOCALSTACK_ENDPOINT
-          valueFrom:
-            configMapKeyRef:
-              name: aws-config
-              key: LOCALSTACK_ENDPOINT

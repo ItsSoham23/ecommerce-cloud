@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cart-service
+  namespace: ecommerce
   labels:
     app: cart-service
     tier: backend
@@ -22,58 +23,41 @@ spec:
     spec:
       containers:
       - name: cart-service
-        image: your-registry/cart-service:latest
-        imagePullPolicy: Always
+        image: 297473910235.dkr.ecr.ap-south-1.amazonaws.com/cart-service:latest
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8083
-          name: http
-          protocol: TCP
         env:
-        - name: NODE_ENV
-          value: "production"
         - name: PORT
           value: "8083"
         - name: AWS_REGION
           valueFrom:
             configMapKeyRef:
-              name: cart-config
+              name: aws-config
               key: aws_region
-        - name: DYNAMODB_TABLE
+        - name: AWS_ENDPOINT
           valueFrom:
             configMapKeyRef:
-              name: cart-config
-              key: dynamodb_table
+              name: aws-config
+              key: aws_endpoint
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
-              name: cart-secrets
-              key: aws_access_key_id
+              name: aws-creds
+              key: AWS_ACCESS_KEY_ID
         - name: AWS_SECRET_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: cart-secrets
-              key: aws_secret_access_key
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8083
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8083
-          initialDelaySeconds: 10
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
+              name: aws-creds
+              key: AWS_SECRET_ACCESS_KEY
+        - name: USE_LOCALSTACK
+          value: "true"
+        - name: LOCALSTACK_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: aws-config
+              key: LOCALSTACK_ENDPOINT
+        - name: PRODUCT_SERVICE_URL
+          value: "http://product-service:8082"
+        # duplicate LocalStack envs removed
       restartPolicy: Always

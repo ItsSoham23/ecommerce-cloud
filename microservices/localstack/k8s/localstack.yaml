@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: localstack
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: localstack
+  template:
+    metadata:
+      labels:
+        app: localstack
+    spec:
+      containers:
+      - name: localstack
+        image: localstack/localstack:latest
+        env:
+        - name: SERVICES
+          value: "dynamodb,sqs,s3,sts"
+        - name: DEFAULT_REGION
+          value: "ap-south-1"
+        - name: EDGE_PORT
+          value: "4566"
+        - name: DATA_DIR
+          value: "/tmp/localstack/data"
+        ports:
+        - containerPort: 4566
+        readinessProbe:
+          httpGet:
+            path: /_localstack/health
+            port: 4566
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /_localstack/health
+            port: 4566
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        # No explicit volumeMount here; let LocalStack use container's /tmp
+      # no pod-level volumes to avoid rmtree/device-busy errors on /tmp
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: localstack
+  namespace: ecommerce
+spec:
+  type: ClusterIP
+  selector:
+    app: localstack
+  ports:
+  - name: edge
+    port: 4566
+    targetPort: 4566

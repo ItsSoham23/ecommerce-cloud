@@ -1,31 +1,31 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: order-service
+  name: product-service
   namespace: ecommerce
   labels:
-    app: order-service
+    app: product-service
     tier: backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: order-service
+      app: product-service
   template:
     metadata:
       labels:
-        app: order-service
+        app: product-service
         tier: backend
     spec:
       containers:
-      - name: order-service
-        image: 297473910235.dkr.ecr.ap-south-1.amazonaws.com/order-service:latest
+      - name: product-service
+        image: 297473910235.dkr.ecr.ap-south-1.amazonaws.com/product-service:latest
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 8084
+        - containerPort: 8082
         env:
         - name: PORT
-          value: "8084"
+          value: "8082"
         - name: AWS_REGION
           valueFrom:
             configMapKeyRef:
@@ -53,3 +53,19 @@ spec:
             configMapKeyRef:
               name: aws-config
               key: LOCALSTACK_ENDPOINT
+        - name: DB_HOST
+          value: "postgres"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "ecommerce"
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: pg-credentials
+              key: POSTGRES_USER
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pg-credentials
+              key: POSTGRES_PASSWORD

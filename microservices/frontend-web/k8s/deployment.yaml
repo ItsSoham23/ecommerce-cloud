@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: frontend-web
-          image: frontend-web:local
+          image: 297473910235.dkr.ecr.ap-south-1.amazonaws.com/frontend-web:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

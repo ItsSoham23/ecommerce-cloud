@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-creds
+  namespace: ecommerce
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: "AKIAFAKEID"
+  AWS_SECRET_ACCESS_KEY: "FAKESECRETKEY"
