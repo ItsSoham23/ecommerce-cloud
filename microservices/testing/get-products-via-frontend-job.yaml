@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: get-products-via-frontend
+  namespace: ecommerce
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: tester
+        image: curlimages/curl:8.3.0
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -eux
+          echo "GET http://frontend-service:80/api/products/"
+          curl -v -sS http://frontend-service:80/api/products/ || true
+          echo
+          echo "---- headers from curl exit status $? ----"
+      terminationGracePeriodSeconds: 5
