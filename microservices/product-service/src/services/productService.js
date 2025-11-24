@@ -27,12 +27,18 @@ class ProductService {
       const required = Math.abs(quantity);
       console.log(`productService.commitSale (atomic) called for product=${parsedId} quantity=${quantity} orderId=${orderId}`);
 
-      // Perform an atomic conditional update: only decrement `stock` and clear
-      // the reservation when the row currently has the matching `reservedByOrderId`
-      // and sufficient `stock`. This prevents races and accidental decrements
-      // when reservations were cleared or don't match.
-      const where = { id: parsedId, stock: { [Op.gte]: required } };
-      if (orderId) where.reservedByOrderId = orderId;
+      // Perform an atomic conditional update: decrement `stock` only when
+      // there is sufficient `stock`. If a reservation exists it must either
+      // be unclaimed (null) or belong to the same `orderId` — this prevents
+      // one order from stealing a reservation owned by another order.
+      const where = {
+        id: parsedId,
+        stock: { [Op.gte]: required },
+        [Op.or]: [
+          { reservedByOrderId: null },
+          { reservedByOrderId: orderId }
+        ]
+      };
 
       const updateObj = {
         stock: Product.sequelize.literal(`stock - ${required}`),
@@ -265,9 +271,13 @@ class ProductService {
       const prevStock = product.stock;
 
       // Reservation intent: when quantity < 0 treat this as a reservation/lock
-      // and DO NOT modify the persisted stock value. Always mark
-      // `reservedByOrderId` (if provided) and `reservedUntil`. Persisted stock
-      // must only change via `commitSale` to avoid double-decrements.
+      // and DO NOT modify the persisted stock value in most cases. To avoid
+      // blocking other customers from placing orders unnecessarily we only
+      // create a reservation when the requested quantity would consume the
+      // remaining stock (i.e. after this order available stock would be 0).
+      // For smaller reservations (required < current stock) we return success
+      // without marking a reservation; the final commit will atomically
+      // decrement stock when payment succeeds.
       const opts = arguments[2] || {};
       if (quantity < 0) {
         // Use an atomic DB-level conditional update to acquire the reservation
@@ -275,6 +285,13 @@ class ProductService {
         const required = Math.abs(quantity);
         const lockTimeoutMs = parseInt(process.env.ORDER_PAYMENT_TIMEOUT_MS || '600000', 10);
         const until = new Date(Date.now() + lockTimeoutMs);
+        // If required is less than current stock, do not create a DB reservation;
+        // allow the caller to proceed (cart/order placement) but rely on the
+        // atomic commit to decrement stock at payment time. This ensures other
+        // users can still place orders / add to cart.
+        if (required < prevStock) {
+          return product;
+        }
 
         // Build the WHERE clause: enough stock AND not currently reserved (or expired)
         const where = {
