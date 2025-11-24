@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: post-to-lb
+  namespace: ecommerce
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - name: curl
+        image: curlimages/curl:8.4.0
+        command:
+        - sh
+        - -c
+        - |
+          echo "Posting payload...";
+          curl -v -H 'Content-Type: application/json' --data '{"email":"e2e-incluster@example.com","firstName":"E2E","lastName":"Test","password":"pw12345","phone":"9999999999"}' 'http://a1cda11aac3304789960261e1337ceeb-a010dfce331dddb3.elb.ap-south-1.amazonaws.com/api/users' || true;
+      restartPolicy: Never

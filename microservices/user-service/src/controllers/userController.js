@@ -15,6 +15,7 @@ async function createUser(req, res, next) {
     }
 
     console.log('createUser request body:', req.body);
+    console.log('createUser raw body:', req.rawBody);
     const created = await userService.createUser(req.body);
     console.log('User created:', created && created.email);
     return res.status(201).json(created);

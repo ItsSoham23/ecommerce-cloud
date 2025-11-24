@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tcpdump-pod
+  namespace: ecommerce
+spec:
+  nodeName: ip-10-0-101-243.ap-south-1.compute.internal
+  containers:
+  - name: tcpdump
+    image: nicolaka/netshoot:latest
+    command: ["sleep","3600"]
+    securityContext:
+      privileged: true
+      capabilities:
+        add: ["NET_RAW","NET_ADMIN"]
+    volumeMounts:
+    - name: tmp
+      mountPath: /tmp
+  restartPolicy: Never
+  volumes:
+  - name: tmp
+    emptyDir: {}

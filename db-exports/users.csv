@@ -1,0 +1,2 @@
+id,email,first_name,last_name,password,phone,is_active,created_at,updated_at
+1,podtest2@example.com,,,$2b$10$a7GuZqv36gkdSvGLOUJ3MuHZ3ZpqMS54Z/Cm3NZ0fmnRG4WjuNVPy,,t,2025-11-24 05:21:52.01+00,2025-11-24 05:21:52.01+00

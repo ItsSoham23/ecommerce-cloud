@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: post-via-frontend
+  namespace: ecommerce
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: tester
+        image: curlimages/curl:8.3.0
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -eux
+          PAYLOAD_FILE=/tmp/payload.json
+          cat > ${PAYLOAD_FILE} <<'JSON'
+          {"username":"job-e2e","email":"job-e2e@example.com","password":"Passw0rd!"}
+          JSON
+          echo "Posting payload (len=$(wc -c < ${PAYLOAD_FILE})) to http://frontend-service:80/api/users/"
+          curl -v -H "Content-Type: application/json" --data-binary @${PAYLOAD_FILE} http://frontend-service:80/api/users/ || true
+          echo
+          echo "--- payload sent: ---"
+          od -An -t x1 ${PAYLOAD_FILE} | sed -E 's/^\s+//'
+      terminationGracePeriodSeconds: 5
