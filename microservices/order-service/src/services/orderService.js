@@ -52,14 +52,21 @@ async function createOrderFromCart(userId, itemsProvided, totalProvided) {
 	for (const it of items) {
 			// Decide whether to create a DB reservation. Only reserve when this
 			// order would consume the remaining stock — i.e. available - required <= 0.
+			// Default to NOT reserving to avoid accidental locks when values are
+			// missing or malformed. Only set reservation when check explicitly
+			// indicates available - required <= 0.
 			const check = inventoryChecks[it.productId];
-			let shouldReserve = true;
+			let shouldReserve = false;
 			if (check && check.product && typeof check.product.stock !== 'undefined') {
 				const available = parseInt(check.product.stock, 10);
 				const required = parseInt(it.quantity, 10);
 				if (!Number.isNaN(available) && !Number.isNaN(required)) {
 					shouldReserve = (available - required) <= 0;
 				}
+				// Log decision for debugging in the cluster
+				log(`reserve-decision product=${it.productId} available=${available} required=${required} shouldReserve=${shouldReserve}`);
+			} else {
+				log(`reserve-decision product=${it.productId} missing inventory check or stock; default shouldReserve=false`);
 			}
 			let r = { ok: true, product: null };
 			if (shouldReserve) {

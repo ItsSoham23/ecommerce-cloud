@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: ecommerce
+spec:
+  template:
+    spec:
+      volumes:
+      - name: product-service-js
+        configMap:
+          name: product-service-index
+      containers:
+      - name: product-service
+        volumeMounts:
+        - name: product-service-js
+          mountPath: /app/src/services/productService.js
+          subPath: productService.js
