@@ -4,7 +4,6 @@
 // Example S3 bucket for raw uploads
 resource "aws_s3_bucket" "raw_bucket" {
   bucket = var.s3_bucket_name
-  acl    = "private"
 }
 
 // Placeholder EKS cluster module invocation

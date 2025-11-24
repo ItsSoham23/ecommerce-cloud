@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-// Direct service URLs - no proxy needed
-const USER_SERVICE = process.env.REACT_APP_USER_SERVICE || 'http://localhost:8081';
-const PRODUCT_SERVICE = process.env.REACT_APP_PRODUCT_SERVICE || 'http://localhost:8082';
-const CART_SERVICE = process.env.REACT_APP_CART_SERVICE || 'http://localhost:8083';
+// Use relative paths so nginx proxy handles routing in production
+const USER_SERVICE = process.env.REACT_APP_USER_SERVICE || '';
+const PRODUCT_SERVICE = process.env.REACT_APP_PRODUCT_SERVICE || '';
+const CART_SERVICE = process.env.REACT_APP_CART_SERVICE || '';
 
 // User Service APIs
 export const registerUser = async (userData) => {
@@ -84,7 +84,7 @@ export const getCartTotal = async (userId) => {
 };
 
 // Order Service APIs
-const ORDER_SERVICE = process.env.REACT_APP_ORDER_SERVICE || 'http://localhost:8084';
+const ORDER_SERVICE = process.env.REACT_APP_ORDER_SERVICE || '';
 
 export const createOrder = async (orderData) => {
   const response = await axios.post(`${ORDER_SERVICE}/api/orders`, orderData);
@@ -102,7 +102,7 @@ export const getUserOrders = async (userId) => {
 };
 
 // Payment Service APIs
-const PAYMENT_SERVICE = process.env.REACT_APP_PAYMENT_SERVICE || 'http://localhost:8085';
+const PAYMENT_SERVICE = process.env.REACT_APP_PAYMENT_SERVICE || '';
 
 export const processPayment = async (paymentData) => {
   try {

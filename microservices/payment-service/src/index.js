@@ -39,8 +39,13 @@ app.post('/api/payments', async (req, res) => {
     await axios.post(`${orderSvcUrl}/api/internal/payment-event`, { topic: 'payment.succeeded', message: { orderId, paymentId } }, { timeout: 5000 });
     return res.json({ success: true, paymentId, receivedSimulate: simulate || 'succeeded' });
   } catch (e) {
-    console.error('Payment API error', e && e.message ? e.message : e);
-    return res.status(500).json({ success: false, message: 'Internal error' });
+    console.error('Payment API error:', e && e.message ? e.message : e);
+    if (e.response) {
+      console.error('Response status:', e.response.status);
+      console.error('Response data:', JSON.stringify(e.response.data));
+    }
+    console.error('Full error:', e);
+    return res.status(500).json({ success: false, message: 'Internal error', error: e && e.message ? e.message : 'Unknown error' });
   }
 });
 

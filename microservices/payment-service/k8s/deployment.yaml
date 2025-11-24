@@ -31,11 +31,6 @@ spec:
             configMapKeyRef:
               name: aws-config
               key: aws_region
-        - name: AWS_ENDPOINT
-          valueFrom:
-            configMapKeyRef:
-              name: aws-config
-              key: aws_endpoint
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -46,5 +41,19 @@ spec:
             secretKeyRef:
               name: aws-creds
               key: AWS_SECRET_ACCESS_KEY
+        - name: USE_LOCALSTACK
+          valueFrom:
+            configMapKeyRef:
+              name: aws-config
+              key: USE_LOCALSTACK
         - name: ORDER_SERVICE_URL
           value: "http://order-service:8084"
+        volumeMounts:
+        - name: index-js
+          mountPath: /app/src/index.js
+          subPath: index.js
+      volumes:
+      - name: index-js
+        configMap:
+          name: payment-service-index
+

@@ -31,11 +31,6 @@ spec:
             configMapKeyRef:
               name: aws-config
               key: aws_region
-        - name: AWS_ENDPOINT
-          valueFrom:
-            configMapKeyRef:
-              name: aws-config
-              key: aws_endpoint
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -47,13 +42,20 @@ spec:
               name: aws-creds
               key: AWS_SECRET_ACCESS_KEY
         - name: USE_LOCALSTACK
-          value: "true"
-        - name: LOCALSTACK_ENDPOINT
           valueFrom:
             configMapKeyRef:
               name: aws-config
-              key: LOCALSTACK_ENDPOINT
+              key: USE_LOCALSTACK
         - name: PRODUCT_SERVICE_URL
           value: "http://product-service:8082"
         - name: CART_SERVICE_URL
           value: "http://cart-service:8083"
+        volumeMounts:
+        - name: index-js
+          mountPath: /app/src/index.js
+          subPath: index.js
+      volumes:
+      - name: index-js
+        configMap:
+          name: order-service-index
+

@@ -78,17 +78,33 @@ class ProductService {
         where.isActive = true;
       }
 
-      // Exclude products that are currently reserved by another pending order unless explicitly requested
-      if (!filters.includeReserved) {
-        const now = new Date();
-        where[Op.or] = [
-          { reservedByOrderId: null },
-          { reservedUntil: { [Op.lt]: now } }
-        ];
-      }
+      // By default, keep reserved products in listings so the frontend can
+      // display them (marked as reserved) rather than removing them entirely.
+      // Consumers can request exclusion by passing `excludeReserved=true`.
 
       const products = await Product.findAll({ where, order: [['createdAt', 'DESC']] });
-      return products;
+
+      // Map results to plain objects and mark/mask reserved items
+      const now = new Date();
+      const mapped = (products || []).map(p => {
+        const obj = p && p.toJSON ? p.toJSON() : p;
+        if (obj && obj.reservedByOrderId && obj.reservedUntil) {
+          const until = new Date(obj.reservedUntil);
+          if (until > now) {
+            obj._reserved = true;
+            // Do not zero out `stock` here — keep product visible. Frontend
+            // can use the `_reserved` flag to show reservation state to users.
+          }
+        }
+        return obj;
+      });
+
+      // Optionally allow callers to exclude reserved products
+      if (filters && filters.excludeReserved) {
+        return mapped.filter(p => !(p._reserved && p._reserved === true));
+      }
+
+      return mapped;
     } catch (error) {
       // If DB is unavailable in development, return a small fallback dataset
       const isDev = process.env.NODE_ENV !== 'production';
