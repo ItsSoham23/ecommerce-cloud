@@ -69,4 +69,7 @@ spec:
             secretKeyRef:
               name: pg-credentials
               key: POSTGRES_PASSWORD
+        - name: ALLOWED_ORIGINS
+          # Frontend host (including scheme). No trailing slash required.
+          value: "http://aef3e087a2e7147bfbfba18e589d76e6-37607585.ap-south-1.elb.amazonaws.com"
         # LocalStack envs provided above; duplicate entries removed

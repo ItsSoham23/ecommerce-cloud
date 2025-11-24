@@ -12,16 +12,21 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 app.use(helmet());
-// Enable CORS for the frontend dev server and common localhost variants.
+// Enable CORS. Allowed origins can be configured via ALLOWED_ORIGINS env var
+// as a comma-separated list (e.g. "https://app.example.com,https://www.example.com").
+// If not set, fall back to common localhost dev origins.
+const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000';
+const allowedOrigins = allowedOriginsEnv.split(',').map((s) => s.trim()).filter(Boolean);
+
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g., curl, mobile clients)
     if (!origin) return callback(null, true);
-    const allowed = [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-    ];
-    if (allowed.includes(origin)) return callback(null, true);
+    // Allow wildcard '*' if provided
+    if (allowedOrigins.includes('*')) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Log denied origin for easier debugging
+    console.warn('CORS: denied origin', origin, 'allowed=', allowedOrigins);
     return callback(new Error('CORS policy: This origin is not allowed'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
