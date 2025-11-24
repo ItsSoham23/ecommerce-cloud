@@ -43,8 +43,30 @@ Microservices (example domain: e-commerce)
 - order-service (EKS-hosted, publishes payment.requested)
 - payment-service (EKS-hosted or separate; consumes payment.requested and publishes result)
 
-Analytics service
-- Flink job running on GCP Dataproc consuming from Kafka topic `events` and publishing aggregated results to `results` topic.
+Analytics service (Cross-Cloud Setup: AWS → GCP)
+- **Infrastructure**: PySpark analytics job running on GCP Dataproc Serverless (runtime 2.2 / Spark 3.5 / Scala 2.13)
+- **Data Source**: AWS EKS Kafka broker exposed via LoadBalancer (`a7c3502b39bba43e08f38eb2cc3d9845-1536208886.ap-south-1.elb.amazonaws.com:9092`)
+- **Storage**: GCS bucket `gs://ecommerce-analytics-393953-20251124/analytics/` for aggregated results
+- **Service Account**: `analytics-runner@ecommerce-cloud-dev.iam.gserviceaccount.com` with roles: `dataproc.worker`, `storage.objectAdmin`, `datastore.user`
+- **Optional Storage**: Cloud SQL Postgres instance `ecommerce-analytics-pg` (136.112.199.189) and Firestore (Datastore mode) available for persistent analytics state
+- **Events Consumed**: `payment.requested`, `payment.succeeded`, `payment.failed` topics from AWS Kafka
+- **Analytics Output**: JSON aggregations (overall statistics, by status, by user) written to GCS
+
+**Current Status**:
+- ✅ GCP analytics infrastructure fully functional (Dataproc + GCS validated with demo using sample payment events)
+- ✅ Kafka TCP connectivity verified (Cloud Shell → AWS Kafka ELB succeeds)
+- ⚠️ Real-time Kafka consumption blocked by metadata fetch timeout (Spark Kafka AdminClient times out on `describeTopics` call)
+
+**Production Requirements for Real-Time Kafka**:
+The cross-cloud Kafka setup has a known networking limitation. TCP connections to the Kafka ELB succeed, but Spark's Kafka AdminClient cannot fetch topic metadata (times out on `describeTopics`). This is typically caused by:
+1. **Kafka Broker Configuration**: The broker advertises internal AWS IPs to clients instead of the public ELB hostname. Clients connect to the ELB, but when fetching metadata, the broker returns internal IPs that Dataproc workers cannot reach.
+2. **Security Groups**: AWS security groups may allow Cloud Shell IPs but block Dataproc Serverless egress IPs.
+
+**Solutions for Production**:
+- **Option A (Recommended)**: Configure Kafka `advertised.listeners` to use the public ELB hostname so clients receive routable addresses
+- **Option B**: Implement VPN/Cloud Interconnect/PrivateLink between GCP and AWS for private connectivity
+- **Option C**: Add Dataproc Serverless egress IP ranges to AWS security group ingress rules
+- **Current Workaround**: Demo analytics job uses sample payment data to validate pipeline; production would use Option A or B
 
 Serverless
 - AWS Lambda function triggered by S3 object creation for async processing (e.g., image resizing, sending events to Kafka).

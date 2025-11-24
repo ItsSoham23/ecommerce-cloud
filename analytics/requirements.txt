@@ -1,0 +1,6 @@
+pyflink>=1.17,<1.19
+kafka-python>=2.0.2
+google-cloud-storage>=2.14.0
+google-cloud-firestore>=2.14.0
+google-cloud-secret-manager>=2.18.0
+psycopg2-binary>=2.9.9

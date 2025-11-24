@@ -30,9 +30,11 @@ def parse_args():
     parser.add_argument("--kafka_topic", required=True)
     parser.add_argument("--results_bucket", required=True)
     parser.add_argument("--firestore_collection", required=True)
-    parser.add_argument("--cloud_sql_private_ip", required=True)
-    parser.add_argument("--cloud_sql_user", required=True)
-    parser.add_argument("--cloud_sql_password_secret", required=True)
+    # Cloud SQL is optional. If not provided, metrics will be written only to
+    # Firestore and GCS.
+    parser.add_argument("--cloud_sql_private_ip", required=False, default=None)
+    parser.add_argument("--cloud_sql_user", required=False, default=None)
+    parser.add_argument("--cloud_sql_password_secret", required=False, default=None)
     parser.add_argument("--project_id", required=True)
     parser.add_argument("--firestore_project", required=True)
     parser.add_argument("--window_minutes", type=int, default=1)
@@ -79,55 +81,75 @@ class AnalyticsWindowFunction(ProcessWindowFunction):
     def open(self, runtime_context: RuntimeContext):
         self.storage_client = storage.Client()
         self.firestore_client = firestore.Client(project=self.firestore_project)
-        password = fetch_secret(self.project_id, self.secret_id)
-        self.cloud_sql_conn = psycopg2.connect(
-            dbname=self.cloud_sql_config["database"],
-            user=self.cloud_sql_config["user"],
-            password=password,
-            host=self.cloud_sql_config["host"],
-            port=self.cloud_sql_config.get("port", 5432),
-            cursor_factory=RealDictCursor,
-        )
-        self.cloud_sql_conn.autocommit = True
-        with self.cloud_sql_conn.cursor() as cur:
-            cur.execute(
-                """CREATE TABLE IF NOT EXISTS analytics_metrics (
-                    window_start TIMESTAMPTZ NOT NULL,
-                    size_label TEXT NOT NULL,
-                    event_count BIGINT,
-                    total_bytes BIGINT,
-                    latest_event TIMESTAMPTZ,
-                    summary_json JSONB,
-                    PRIMARY KEY (window_start, size_label)
-                )"""
-            )
+        # Cloud SQL connection is optional. Only connect if a host and user
+        # were provided via cloud_sql_config.
+        self.cloud_sql_conn = None
+        if self.cloud_sql_config and self.cloud_sql_config.get("host") and self.secret_id and self.cloud_sql_config.get("user"):
+            try:
+                password = fetch_secret(self.project_id, self.secret_id)
+                self.cloud_sql_conn = psycopg2.connect(
+                    dbname=self.cloud_sql_config.get("database", "analytics"),
+                    user=self.cloud_sql_config.get("user"),
+                    password=password,
+                    host=self.cloud_sql_config.get("host"),
+                    port=self.cloud_sql_config.get("port", 5432),
+                    cursor_factory=RealDictCursor,
+                )
+                self.cloud_sql_conn.autocommit = True
+                with self.cloud_sql_conn.cursor() as cur:
+                    cur.execute(
+                        """CREATE TABLE IF NOT EXISTS analytics_metrics (
+                            window_start TIMESTAMPTZ NOT NULL,
+                            size_label TEXT NOT NULL,
+                            event_count BIGINT,
+                            total_bytes BIGINT,
+                            latest_event TIMESTAMPTZ,
+                            summary_json JSONB,
+                            PRIMARY KEY (window_start, size_label)
+                        )"""
+                    )
+            except Exception:
+                # If Cloud SQL setup fails, log and continue without SQL.
+                logger.exception("Failed to initialize Cloud SQL connection — continuing without SQL persistence")
 
     def _persist(self, metrics: dict, size_label: str):
         window_start = datetime.fromisoformat(metrics["window_start"])
         json_blob = json.dumps(metrics)
-        with self.cloud_sql_conn.cursor() as cur:
-            cur.execute(
-                """INSERT INTO analytics_metrics (window_start, size_label, event_count, total_bytes, latest_event, summary_json)
-                   VALUES (%s, %s, %s, %s, %s, %s)
-                   ON CONFLICT (window_start, size_label) DO UPDATE
-                     SET event_count = EXCLUDED.event_count,
-                         total_bytes = EXCLUDED.total_bytes,
-                         latest_event = EXCLUDED.latest_event,
-                         summary_json = EXCLUDED.summary_json""",
-                (
-                    window_start,
-                    size_label,
-                    metrics["event_count"],
-                    metrics["total_bytes"],
-                    metrics["latest_event"],
-                    json_blob,
-                ),
-            )
-        document_id = f"{metrics['window_start']}_{size_label}"
-        self.firestore_client.collection(self.firestore_collection).document(document_id).set(metrics)
-        blob = self.storage_client.bucket(self.results_bucket).blob(f"analytics/{metrics['window_start']}_{size_label}.json")
-        blob.upload_from_string(json_blob, content_type="application/json")
-        logger.debug("Persisted metrics for %s to Firestore, Cloud SQL, and GCS", size_label)
+        # Persist to Cloud SQL only if the connection was successfully created.
+        if self.cloud_sql_conn:
+            try:
+                with self.cloud_sql_conn.cursor() as cur:
+                    cur.execute(
+                        """INSERT INTO analytics_metrics (window_start, size_label, event_count, total_bytes, latest_event, summary_json)
+                           VALUES (%s, %s, %s, %s, %s, %s)
+                           ON CONFLICT (window_start, size_label) DO UPDATE
+                             SET event_count = EXCLUDED.event_count,
+                                 total_bytes = EXCLUDED.total_bytes,
+                                 latest_event = EXCLUDED.latest_event,
+                                 summary_json = EXCLUDED.summary_json""",
+                        (
+                            window_start,
+                            size_label,
+                            metrics["event_count"],
+                            metrics["total_bytes"],
+                            metrics["latest_event"],
+                            json_blob,
+                        ),
+                    )
+            except Exception:
+                logger.exception("Failed to persist metrics to Cloud SQL; continuing")
+        # Always write to Firestore and GCS (if available)
+        try:
+            document_id = f"{metrics['window_start']}_{size_label}"
+            self.firestore_client.collection(self.firestore_collection).document(document_id).set(metrics)
+        except Exception:
+            logger.exception("Failed to persist metrics to Firestore")
+        try:
+            blob = self.storage_client.bucket(self.results_bucket).blob(f"analytics/{metrics['window_start']}_{size_label}.json")
+            blob.upload_from_string(json_blob, content_type="application/json")
+        except Exception:
+            logger.exception("Failed to persist metrics to GCS")
+        logger.debug("Persisted metrics for %s to Firestore and GCS (Cloud SQL=%s)", size_label, bool(self.cloud_sql_conn))
 
     def process(self, key, context, elements, collector):
         events = list(elements)
@@ -165,55 +187,73 @@ class WindowAccumulator(KeyedProcessFunction):
     def open(self, runtime_context: RuntimeContext):
         self.storage_client = storage.Client()
         self.firestore_client = firestore.Client(project=self.firestore_project)
-        password = fetch_secret(self.project_id, self.secret_id)
-        self.cloud_sql_conn = psycopg2.connect(
-            dbname=self.cloud_sql_config["database"],
-            user=self.cloud_sql_config["user"],
-            password=password,
-            host=self.cloud_sql_config["host"],
-            port=self.cloud_sql_config.get("port", 5432),
-            cursor_factory=RealDictCursor,
-        )
-        self.cloud_sql_conn.autocommit = True
-        with self.cloud_sql_conn.cursor() as cur:
-            cur.execute(
-                """CREATE TABLE IF NOT EXISTS analytics_metrics (
-                    window_start TIMESTAMPTZ NOT NULL,
-                    size_label TEXT NOT NULL,
-                    event_count BIGINT,
-                    total_bytes BIGINT,
-                    latest_event TIMESTAMPTZ,
-                    summary_json JSONB,
-                    PRIMARY KEY (window_start, size_label)
-                )"""
-            )
+        # Cloud SQL optional handling
+        self.cloud_sql_conn = None
+        if self.cloud_sql_config and self.cloud_sql_config.get("host") and self.secret_id and self.cloud_sql_config.get("user"):
+            try:
+                password = fetch_secret(self.project_id, self.secret_id)
+                self.cloud_sql_conn = psycopg2.connect(
+                    dbname=self.cloud_sql_config.get("database", "analytics"),
+                    user=self.cloud_sql_config.get("user"),
+                    password=password,
+                    host=self.cloud_sql_config.get("host"),
+                    port=self.cloud_sql_config.get("port", 5432),
+                    cursor_factory=RealDictCursor,
+                )
+                self.cloud_sql_conn.autocommit = True
+                with self.cloud_sql_conn.cursor() as cur:
+                    cur.execute(
+                        """CREATE TABLE IF NOT EXISTS analytics_metrics (
+                            window_start TIMESTAMPTZ NOT NULL,
+                            size_label TEXT NOT NULL,
+                            event_count BIGINT,
+                            total_bytes BIGINT,
+                            latest_event TIMESTAMPTZ,
+                            summary_json JSONB,
+                            PRIMARY KEY (window_start, size_label)
+                        )"""
+                    )
+            except Exception:
+                logger.exception("Failed to initialize Cloud SQL connection in WindowAccumulator — continuing without SQL persistence")
         self._windows = runtime_context.get_map_state(self._map_state_desc)
 
     def _persist(self, metrics: dict, size_label: str):
         window_start = datetime.fromisoformat(metrics["window_start"])
         json_blob = json.dumps(metrics)
-        with self.cloud_sql_conn.cursor() as cur:
-            cur.execute(
-                """INSERT INTO analytics_metrics (window_start, size_label, event_count, total_bytes, latest_event, summary_json)
-                   VALUES (%s, %s, %s, %s, %s, %s)
-                   ON CONFLICT (window_start, size_label) DO UPDATE
-                     SET event_count = EXCLUDED.event_count,
-                         total_bytes = EXCLUDED.total_bytes,
-                         latest_event = EXCLUDED.latest_event,
-                         summary_json = EXCLUDED.summary_json""",
-                (
-                    window_start,
-                    size_label,
-                    metrics["event_count"],
-                    metrics["total_bytes"],
-                    metrics["latest_event"],
-                    json_blob,
-                ),
-            )
-        document_id = f"{metrics['window_start']}_{size_label}"
-        self.firestore_client.collection(self.firestore_collection).document(document_id).set(metrics)
-        blob = self.storage_client.bucket(self.results_bucket).blob(f"analytics/{metrics['window_start']}_{size_label}.json")
-        blob.upload_from_string(json_blob, content_type="application/json")
+        # Optional Cloud SQL write
+        if self.cloud_sql_conn:
+            try:
+                with self.cloud_sql_conn.cursor() as cur:
+                    cur.execute(
+                        """INSERT INTO analytics_metrics (window_start, size_label, event_count, total_bytes, latest_event, summary_json)
+                           VALUES (%s, %s, %s, %s, %s, %s)
+                           ON CONFLICT (window_start, size_label) DO UPDATE
+                             SET event_count = EXCLUDED.event_count,
+                                 total_bytes = EXCLUDED.total_bytes,
+                                 latest_event = EXCLUDED.latest_event,
+                                 summary_json = EXCLUDED.summary_json""",
+                        (
+                            window_start,
+                            size_label,
+                            metrics["event_count"],
+                            metrics["total_bytes"],
+                            metrics["latest_event"],
+                            json_blob,
+                        ),
+                    )
+            except Exception:
+                logger.exception("Failed to persist metrics to Cloud SQL; continuing")
+        # Firestore + GCS always attempted
+        try:
+            document_id = f"{metrics['window_start']}_{size_label}"
+            self.firestore_client.collection(self.firestore_collection).document(document_id).set(metrics)
+        except Exception:
+            logger.exception("Failed to persist metrics to Firestore")
+        try:
+            blob = self.storage_client.bucket(self.results_bucket).blob(f"analytics/{metrics['window_start']}_{size_label}.json")
+            blob.upload_from_string(json_blob, content_type="application/json")
+        except Exception:
+            logger.exception("Failed to persist metrics to GCS")
 
     def process_element(self, value, ctx):
         # determine window end aligned to window size
