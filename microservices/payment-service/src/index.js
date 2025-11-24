@@ -27,16 +27,44 @@ app.post('/api/payments', async (req, res) => {
     console.log('Payment API called with body:', JSON.stringify(req.body));
     // simulate: 'succeeded' or 'failed'
     const paymentId = `pay-${Date.now()}`;
-    const axios = require('axios');
     const orderSvcUrl = process.env.ORDER_SERVICE_URL || 'http://order-service:8084';
+
+    // lightweight internal POST helper to avoid adding axios as a dependency
+    const postJson = (url, body) => new Promise((resolve, reject) => {
+      try {
+        const u = new URL(url);
+        const lib = u.protocol === 'https:' ? require('https') : require('http');
+        const data = JSON.stringify(body);
+        const opts = {
+          hostname: u.hostname,
+          port: u.port || (u.protocol === 'https:' ? 443 : 80),
+          path: u.pathname + (u.search || ''),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+          timeout: 5000
+        };
+        const req = lib.request(opts, (res) => {
+          let b = '';
+          res.on('data', (d) => b += d);
+          res.on('end', () => resolve({ status: res.statusCode, body: b }));
+        });
+        req.on('error', (e) => reject(e));
+        req.on('timeout', () => { req.destroy(new Error('timeout')); });
+        req.write(data);
+        req.end();
+      } catch (err) {
+        reject(err);
+      }
+    });
+
     if (simulate === 'failed' || simulate === 'failure' || simulate === 'false') {
       // notify order-service of payment.failed via internal HTTP endpoint
-      await axios.post(`${orderSvcUrl}/api/internal/payment-event`, { topic: 'payment.failed', message: { orderId, reason: 'simulated_failure' } }, { timeout: 5000 });
+      await postJson(`${orderSvcUrl}/api/internal/payment-event`, { topic: 'payment.failed', message: { orderId, reason: 'simulated_failure' } });
       return res.json({ success: false, paymentId: null, message: 'Simulated failure sent', receivedSimulate: simulate });
     }
 
     // default: succeed - notify order-service via internal endpoint
-    await axios.post(`${orderSvcUrl}/api/internal/payment-event`, { topic: 'payment.succeeded', message: { orderId, paymentId } }, { timeout: 5000 });
+    await postJson(`${orderSvcUrl}/api/internal/payment-event`, { topic: 'payment.succeeded', message: { orderId, paymentId } });
     return res.json({ success: true, paymentId, receivedSimulate: simulate || 'succeeded' });
   } catch (e) {
     console.error('Payment API error:', e && e.message ? e.message : e);

@@ -52,8 +52,14 @@ spec:
         - name: index-js
           mountPath: /app/src/index.js
           subPath: index.js
+        - name: kafka-js
+          mountPath: /app/src/services/kafkaService.js
+          subPath: kafkaService.js
       volumes:
       - name: index-js
         configMap:
           name: payment-service-index
+      - name: kafka-js
+        configMap:
+          name: payment-service-kafka
 
