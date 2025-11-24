@@ -27,16 +27,16 @@ app.post('/api/payments', async (req, res) => {
     console.log('Payment API called with body:', JSON.stringify(req.body));
     // simulate: 'succeeded' or 'failed'
     const paymentId = `pay-${Date.now()}`;
+    const axios = require('axios');
+    const orderSvcUrl = process.env.ORDER_SERVICE_URL || 'http://order-service:8084';
     if (simulate === 'failed' || simulate === 'failure' || simulate === 'false') {
-      // publish payment.failed
-      const { produce } = require('./services/kafkaService');
-      await produce('payment.failed', { orderId, reason: 'simulated_failure' });
-      return res.json({ success: false, paymentId: null, message: 'Simulated failure published', receivedSimulate: simulate });
+      // notify order-service of payment.failed via internal HTTP endpoint
+      await axios.post(`${orderSvcUrl}/api/internal/payment-event`, { topic: 'payment.failed', message: { orderId, reason: 'simulated_failure' } }, { timeout: 5000 });
+      return res.json({ success: false, paymentId: null, message: 'Simulated failure sent', receivedSimulate: simulate });
     }
 
-    // default: succeed
-    const { produce } = require('./services/kafkaService');
-    await produce('payment.succeeded', { orderId, paymentId });
+    // default: succeed - notify order-service via internal endpoint
+    await axios.post(`${orderSvcUrl}/api/internal/payment-event`, { topic: 'payment.succeeded', message: { orderId, paymentId } }, { timeout: 5000 });
     return res.json({ success: true, paymentId, receivedSimulate: simulate || 'succeeded' });
   } catch (e) {
     console.error('Payment API error', e && e.message ? e.message : e);

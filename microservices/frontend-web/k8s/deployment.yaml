@@ -31,6 +31,10 @@ spec:
           env:
             - name: NODE_ENV
               value: production
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
           resources:
             requests:
               cpu: "100m"
@@ -54,3 +58,10 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: frontend-nginx-conf
+            items:
+              - key: nginx.conf
+                path: nginx.conf

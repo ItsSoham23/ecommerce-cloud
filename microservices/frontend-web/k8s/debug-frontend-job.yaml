@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: frontend-debug
+  namespace: ecommerce
+spec:
+  template:
+    metadata:
+      name: frontend-debug
+    spec:
+      containers:
+      - name: curl
+        image: curlimages/curl:8.3.0
+        command: ["/bin/sh","-c"]
+        args:
+        - |
+          set -e
+          curl -sS http://frontend-web:80/ -o /tmp/index.html || true
+          echo '---FIRST_LINES---'
+          sed -n '1,160p' /tmp/index.html || true
+          echo '---LOCALHOST_OCCURRENCES---'
+          grep -n 'localhost' /tmp/index.html || true
+          echo '---JS_ASSETS---'
+          grep -oE 'src="[^\"]+\.js' /tmp/index.html | sed -E 's/src="//' || true
+      restartPolicy: Never
+  backoffLimit: 0

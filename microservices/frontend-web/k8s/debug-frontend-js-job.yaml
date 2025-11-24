@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: frontend-debug-js
+  namespace: ecommerce
+spec:
+  template:
+    metadata:
+      name: frontend-debug-js
+    spec:
+      containers:
+      - name: curl
+        image: curlimages/curl:8.3.0
+        command: ["/bin/sh","-c"]
+        args:
+        - |
+          set -e
+          echo '---FETCH JS---'
+          curl -sS http://frontend-web:80/static/js/main.69608da9.js -o /tmp/main.js || true
+          echo '---SIZE---'
+          ls -l /tmp/main.js || true
+          echo '---LOCALHOST MATCHES IN JS---'
+          grep -n 'localhost' /tmp/main.js || true
+      restartPolicy: Never
+  backoffLimit: 0

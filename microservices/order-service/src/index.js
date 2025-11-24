@@ -34,6 +34,21 @@ app.use((err, req, res, next) => {
 	res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
 });
 
+// Internal endpoint to receive payment events when Kafka is unavailable.
+app.post('/api/internal/payment-event', async (req, res) => {
+	try {
+		const { topic, message } = req.body || {};
+		if (!topic || !message) return res.status(400).json({ error: 'topic and message required' });
+		const paymentConsumer = require('./services/paymentConsumer');
+		// Call handler directly (no Kafka) and return 200 immediately
+		await paymentConsumer.handlePaymentMessage({ topic, message });
+		return res.status(200).json({ ok: true });
+	} catch (e) {
+		console.error('internal payment-event error', e && e.message ? e.message : e);
+		return res.status(500).json({ error: 'internal handler error' });
+	}
+});
+
 const startServer = async () => {
 	try {
 		// If configured to use LocalStack, wait for it to be reachable before creating tables
