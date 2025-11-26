@@ -58,7 +58,15 @@ const startServer = async () => {
     
     await sequelize.sync({ alter: true });
     console.log('✅ Database synchronized');
-    
+
+    // Start background jobs (clear expired reservations)
+    try {
+      const { start: startExpireJob } = require('./jobs/expireReservations');
+      startExpireJob();
+    } catch (err) {
+      console.error('Failed to start expireReservations job', err && err.message ? err.message : err);
+    }
+
     app.listen(PORT, () => {
       console.log(`🚀 Product Service running on port ${PORT}`);
       console.log(`📊 Health: http://localhost:${PORT}/health`);
