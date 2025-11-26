@@ -1,3 +1,5 @@
+// Configures and exports DynamoDB client for the cart service
+
 const AWS = require('aws-sdk');
 require('dotenv').config();
 
