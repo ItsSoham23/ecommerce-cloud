@@ -2,6 +2,7 @@ const Product = require('../models/Product');
 const { s3 } = require('../config/s3');
 const { Op } = require('sequelize');
 const kafka = require('./kafkaService');
+const path = require('path');
 
 class ProductService {
   async createProduct(productData) {
@@ -105,12 +106,45 @@ class ProductService {
         return obj;
       });
 
+      // Attach image variant URLs (thumbnail/medium/large) when possible
+      const processedBucket = process.env.PROCESSED_BUCKET || 'processed-images-bucket';
+      const sizes = [
+        { name: 'thumbnail', w: 150, h: 150 },
+        { name: 'medium', w: 400, h: 400 },
+        { name: 'large', w: 800, h: 800 }
+      ];
+
+      const withImages = mapped.map(p => {
+        try {
+          const s3Key = p.s3Key || null;
+          let baseName = null;
+          if (s3Key) baseName = path.basename(s3Key, path.extname(s3Key));
+          else if (p.imageUrl) baseName = path.basename(p.imageUrl, path.extname(p.imageUrl));
+          if (!baseName) return p;
+
+          const variants = {};
+          sizes.forEach(s => {
+            const key = `${s.name}/${baseName}_${s.w}x${s.h}.jpg`;
+            const url = `https://${processedBucket}.s3.amazonaws.com/${key}`;
+            variants[s.name] = url;
+          });
+          p.imageVariants = variants;
+          // Keep imageUrl as the thumbnail if not already set to a processed path
+          if (!p.imageUrl || !p.imageUrl.includes('/thumbnail/')) {
+            p.imageUrl = variants.thumbnail;
+          }
+        } catch (err) {
+          // ignore image derivation errors
+        }
+        return p;
+      });
+
       // Optionally allow callers to exclude reserved products
       if (filters && filters.excludeReserved) {
-        return mapped.filter(p => !(p._reserved && p._reserved === true));
+        return withImages.filter(p => !(p._reserved && p._reserved === true));
       }
 
-      return mapped;
+      return withImages;
     } catch (error) {
       // If DB is unavailable in development, return a small fallback dataset
       const isDev = process.env.NODE_ENV !== 'production';
@@ -246,8 +280,19 @@ class ProductService {
       const params = { Bucket: bucketName, Key: key, Body: file.buffer, ContentType: file.mimetype };
       const uploadResult = await s3.upload(params).promise();
 
-      await product.update({ s3Key: key, imageUrl: uploadResult.Location });
-      return { message: 'Image uploaded', imageUrl: uploadResult.Location };
+      // Persist the raw upload key and set the publicly-consumable thumbnail URL
+      await product.update({ s3Key: key });
+
+      // Derive processed variant URLs (these will be created by the image-processor Lambda)
+      const processedBucket = process.env.PROCESSED_BUCKET || 'processed-images-bucket';
+      const baseName = path.basename(key, path.extname(key));
+      const thumbnailKey = `thumbnail/${baseName}_150x150.jpg`;
+      const thumbnailUrl = `https://${processedBucket}.s3.amazonaws.com/${thumbnailKey}`;
+
+      // Update imageUrl to point to the thumbnail so the frontend can show a small image immediately
+      await product.update({ imageUrl: thumbnailUrl });
+
+      return { message: 'Image uploaded', rawLocation: uploadResult.Location, thumbnailUrl };
     } catch (error) {
       throw new Error(`Error uploading image: ${error.message}`);
     }

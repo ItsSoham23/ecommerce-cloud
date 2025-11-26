@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Sample Products - Thumbnails</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .grid { display:flex; flex-wrap:wrap; gap:12px }
+    .card { width:160px; border:1px solid #ddd; padding:8px; border-radius:6px; text-align:center }
+    .card img { width:150px; height:150px; object-fit:cover; cursor:pointer }
+    .modal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); }
+    .modal img { max-width:90%; max-height:90%; border:4px solid white }
+  </style>
+</head>
+<body>
+  <h2>Products (thumbnails)</h2>
+  <div id="grid" class="grid"></div>
+
+  <div id="modal" style="display:none" class="modal" onclick="hideModal()">
+    <img id="modalImg" src="" alt="Large" />
+  </div>
+
+  <script>
+    const API = (new URLSearchParams(window.location.search).get('api')) || 'http://localhost:8082';
+    async function load() {
+      const res = await fetch(`${API}/api/products`);
+      const products = await res.json();
+      const grid = document.getElementById('grid');
+      products.forEach(p => {
+        const card = document.createElement('div'); card.className='card';
+        const img = document.createElement('img');
+        img.src = (p.imageUrl && p.imageUrl.length>0) ? p.imageUrl : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAAWgmWQ0AAAAASUVORK5CYII=';
+        img.alt = p.name;
+        img.onclick = () => showLarge(p);
+        const title = document.createElement('div'); title.textContent = p.name;
+        card.appendChild(img); card.appendChild(title);
+        grid.appendChild(card);
+      });
+    }
+    function showLarge(p) {
+      const modal = document.getElementById('modal');
+      const modalImg = document.getElementById('modalImg');
+      // Prefer explicit large variant, fallback to replacing thumbnail with large
+      const large = p.imageVariants && p.imageVariants.large ? p.imageVariants.large : (p.imageUrl ? p.imageUrl.replace('/thumbnail/', '/large/') : '');
+      modalImg.src = large;
+      modal.style.display = 'flex';
+    }
+    function hideModal() { document.getElementById('modal').style.display='none'; }
+    load().catch(e=>{console.error(e); alert('Failed to load products. Is product-service running on http://localhost:8082?')});
+  </script>
+</body>
+</html>
