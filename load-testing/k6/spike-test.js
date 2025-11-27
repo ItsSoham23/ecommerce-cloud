@@ -18,7 +18,7 @@ const errorRate = new Rate('errors');
 export const options = {
   stages: [
     { duration: '1m', target: 10 },     // Normal load
-    { duration: '30s', target: 500 },   // 🚀 SUDDEN SPIKE!
+    { duration: '30s', target: 500 },   //  SUDDEN SPIKE
     { duration: '2m', target: 500 },    // Sustained spike
     { duration: '1m', target: 10 },     // Recovery
     { duration: '2m', target: 10 },     // Observe stability
