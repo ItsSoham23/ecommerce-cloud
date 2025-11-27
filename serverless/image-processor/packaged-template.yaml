@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless Image Processor (resizes uploaded images)
+Parameters:
+  SourceBucketName:
+    Type: String
+    Description: Name of the S3 bucket that receives original uploads
+  ProcessedBucketName:
+    Type: String
+    Description: Name of the S3 bucket to store processed images
+  CreateBuckets:
+    Type: String
+    AllowedValues:
+    - 'true'
+    - 'false'
+    Default: 'true'
+    Description: Whether CloudFormation should create the S3 buckets. Set to "false"
+      when buckets already exist.
+Conditions:
+  CreateBucketsCondition:
+    Fn::Equals:
+    - Ref: CreateBuckets
+    - 'true'
+Resources:
+  SourceBucket:
+    Condition: CreateBucketsCondition
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Ref: SourceBucketName
+  ProcessedBucket:
+    Condition: CreateBucketsCondition
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Ref: ProcessedBucketName
+  ImageProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ImageProcessorFunction
+      Runtime: python3.11
+      Handler: lambda_function.lambda_handler
+      CodeUri: s3://ecommerce-sam-artifacts-297473910235-ap-south-1-106f73fd/5f67678069dea78c402e8b122b8fe8f0
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          PROCESSED_BUCKET:
+            Ref: ProcessedBucketName
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          Resource:
+            Fn::Sub: arn:aws:s3:::${SourceBucketName}/*
+        - Effect: Allow
+          Action:
+          - s3:PutObject
+          Resource:
+            Fn::Sub: arn:aws:s3:::${ProcessedBucketName}/*
+        - Effect: Allow
+          Action:
+          - logs:CreateLogGroup
+          - logs:CreateLogStream
+          - logs:PutLogEvents
+          Resource: '*'
+Outputs:
+  FunctionName:
+    Description: Lambda function name
+    Value:
+      Ref: ImageProcessorFunction

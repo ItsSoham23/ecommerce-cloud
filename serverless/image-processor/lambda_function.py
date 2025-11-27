@@ -8,7 +8,6 @@ import boto3
 import os
 from io import BytesIO
 from datetime import datetime
-from kafka import KafkaProducer
 from PIL import Image
 import logging
 
@@ -202,6 +201,12 @@ def get_kafka_producer():
     if not KAFKA_BOOTSTRAP_SERVERS:
         return None
     try:
+        try:
+            from kafka import KafkaProducer
+        except ImportError:
+            logger.info("kafka-python not installed; skipping kafka events")
+            return None
+
         servers = [s.strip() for s in KAFKA_BOOTSTRAP_SERVERS.split(',') if s.strip()]
         if not servers:
             return None

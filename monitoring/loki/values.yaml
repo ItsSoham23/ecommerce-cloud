@@ -1,0 +1,76 @@
+replicaCount: 1
+
+image:
+  tag: "2.8.2"
+
+loki:
+  auth_enabled: false
+  config:
+    table_manager:
+      retention_deletes_enabled: true
+      retention_period: 240h # 10d, adjust as needed
+    schema_config:
+      configs:
+        - from: 2020-10-24
+          store: boltdb-shipper
+          object_store: s3
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+    storage_config:
+      aws:
+        s3: s3://ecommerce-cloud-loki-297473910235-ap-south-1
+        s3forcepathstyle: false
+      boltdb_shipper:
+        active_index_directory: /data/loki/index
+        shared_store: s3
+  persistence:
+    enabled: false
+    accessModes: ["ReadWriteOnce"]
+    size: 20Gi
+
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: memberlist
+
+limits_config:
+  enforce_metric_name: false
+  max_entries_limit_per_query: 10000
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+
+serviceAccount:
+  create: true
+  # For IRSA (recommend for EKS): set `annotations` for AWS IAM Role
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::297473910235:role/LokiS3IRSA-20251127122517"
+
+# Configure the chart to also install Promtail (optional)
+promtail:
+  enabled: true
+  image:
+    tag: "3.0.1"
+  config:
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
+
+# Recommended: configure a Kubernetes service to expose Loki (ClusterIP),
+# and use an Ingress / ALB in front of it in production.
+service:
+  type: ClusterIP
+  port: 3100
+
+# Storage for index and chunks will be on S3. You must provide the S3 bucket
+# and AWS credentials either via IRSA (recommended) or mounted secrets.
+# Example: create a Kubernetes secret with AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+# or use ServiceAccount annotated for IAM role.
+# Example: create a Kubernetes secret with AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
