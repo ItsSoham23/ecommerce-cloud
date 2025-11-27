@@ -32,3 +32,15 @@ ORDER SERVICE (note: exposes port 8084)
 Quick checks
 - Loki health: curl.exe http://127.0.0.1:3100/ready
 - Grafana API datasources: curl.exe -u admin:admin http://127.0.0.1:3000/api/datasources
+
+GET users cli
+kubectl exec -it deployment/postgres -n ecommerce -- psql -U postgres -d ecommerce -c "SELECT * FROM users;"
+
+GET orders cli
+aws dynamodb scan --table-name orders --limit 3 --region ap-south-1
+
+GET cart cli
+aws dynamodb scan --table-name Carts --limit 3 --region ap-south-1
+
+GET products cli
+kubectl exec -it deployment/postgres -n ecommerce -- psql -U postgres -d ecommerce -c "SELECT * FROM products;"
