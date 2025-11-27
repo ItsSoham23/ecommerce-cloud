@@ -1,0 +1,16 @@
+﻿version: 0.2
+phases:
+  install:
+    commands:
+      - yum install -y libjpeg-turbo-devel zlib-devel gcc make
+  build:
+    commands:
+      - pip3 install --no-cache-dir Pillow -t python
+      - chmod -R a+r python
+      - zip -r layer.zip python
+  post_build:
+    commands:
+      - aws s3 cp layer.zip s3://ecommerce-image-processor-layer-297473910235-20251127110256/layer.zip
+artifacts:
+  files:
+    - layer.zip

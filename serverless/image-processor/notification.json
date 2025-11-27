@@ -1,0 +1,10 @@
+{
+    "LambdaFunctionConfigurations":  [
+                                         {
+                                             "Events":  [
+                                                            "s3:ObjectCreated:*"
+                                                        ],
+                                             "LambdaFunctionArn":  "arn:aws:lambda:ap-south-1:297473910235:function:ImageProcessorFunction"
+                                         }
+                                     ]
+}

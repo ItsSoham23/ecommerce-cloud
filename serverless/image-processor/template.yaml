@@ -9,8 +9,28 @@ Parameters:
   ProcessedBucketName:
     Type: String
     Description: Name of the S3 bucket to store processed images
+  CreateBuckets:
+    Type: String
+    AllowedValues: ["true","false"]
+    Default: "true"
+    Description: Whether CloudFormation should create the S3 buckets. Set to "false" when buckets already exist.
+
+Conditions:
+  CreateBucketsCondition: !Equals [ !Ref CreateBuckets, "true" ]
 
 Resources:
+  SourceBucket:
+    Condition: CreateBucketsCondition
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref SourceBucketName
+
+  ProcessedBucket:
+    Condition: CreateBucketsCondition
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref ProcessedBucketName
+
   ImageProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -40,12 +60,10 @@ Resources:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: "*"
-      Events:
-        S3UploadEvent:
-          Type: S3
-          Properties:
-            Bucket: !Ref SourceBucketName
-            Events: s3:ObjectCreated:*
+      # S3 event notifications are configured separately for existing buckets.
+      # When CreateBuckets=true and the buckets are created by this template,
+      # CloudFormation could add the notification. To support existing buckets
+      # we configure the S3 notification after deployment with the Lambda ARN.
 
 Outputs:
   FunctionName:
