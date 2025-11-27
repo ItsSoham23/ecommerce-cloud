@@ -7,6 +7,28 @@ kubectl port-forward -n monitoring svc/grafana 3000:3000
 Prometheus port forward
 kubectl port-forward -n monitoring svc/prometheus 9090:9090
 
-Loki port forward
-kubectl port-forward --address 127.0.0.1 --address ::1 -n monitoring svc/loki 3100:3100 
+Loki port forward (bind both IPv4 & IPv6 so Grafana can reach localhost)
+kubectl port-forward --address 127.0.0.1 --address ::1 -n monitoring svc/loki 3100:3100
 
+Find service ports (example: order-service)
+kubectl get svc -n ecommerce order-service -o wide
+kubectl get svc -n ecommerce order-service -o yaml
+
+USER SERVICE (example)
+- Port-forward user-service to local 18080
+	kubectl port-forward -n ecommerce svc/user-service 18080:8080
+- API (list users)
+	http://127.0.0.1:18080/api/users
+
+ORDER SERVICE (note: exposes port 8084)
+- Port-forward order-service to local 18081
+	kubectl port-forward -n ecommerce svc/order-service 18081:8084
+- Example endpoints
+	- Get orders for a user: http://127.0.0.1:18081/api/orders/user/<USER_ID>
+	- Get single order:         http://127.0.0.1:18081/api/orders/<ORDER_ID>
+	- Create order (POST):
+		curl.exe -H "Content-Type: application/json" -X POST -d '{"userId":"user-123","items":[{"productId":"p1","quantity":1,"price":9.99}],"total":9.99}' http://127.0.0.1:18081/api/orders
+
+Quick checks
+- Loki health: curl.exe http://127.0.0.1:3100/ready
+- Grafana API datasources: curl.exe -u admin:admin http://127.0.0.1:3000/api/datasources

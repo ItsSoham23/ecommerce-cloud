@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda
+  namespace: ecommerce
+  labels:
+    app: redpanda
+    app.kubernetes.io/instance: redpanda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda
+  template:
+    metadata:
+      labels:
+        app: redpanda
+        app.kubernetes.io/instance: redpanda
+    spec:
+      containers:
+        - name: redpanda
+          image: vectorized/redpanda:latest
+          args:
+            - redpanda
+            - start
+            - --overprovisioned
+            - --smp
+            - "1"
+            - --memory
+            - 1G
+            - --reserve-memory
+            - 0M
+            - --kafka-addr
+            - PLAINTEXT://0.0.0.0:9092
+            - --advertise-kafka-addr
+            - PLAINTEXT://kafka:9092
+          ports:
+            - containerPort: 9092
+              name: kafka
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: "100m"
+              memory: 128Mi

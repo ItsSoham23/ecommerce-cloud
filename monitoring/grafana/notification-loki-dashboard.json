@@ -1,0 +1,53 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "9.x" },
+    { "type": "datasource", "id": "loki", "name": "Loki", "version": "2.x" }
+  ],
+  "title": "Notifications (Loki)",
+  "description": "Notification logs and rate from notification-service via Loki",
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "logs",
+      "title": "Notification Logs",
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{namespace=\"ecommerce\", app=\"notification-service\"} |= \"Sending notification\""
+        }
+      ],
+      "datasource": { "type": "loki", "uid": "loki" }
+    },
+    {
+      "type": "timeseries",
+      "title": "Notifications per second",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "fieldConfig": {
+        "defaults": { "unit": "req/s" },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "showLegend": true }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (app) (rate({namespace=\"ecommerce\", app=\"notification-service\"} |= \"Sending notification\" [5m]))",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 1
+}
